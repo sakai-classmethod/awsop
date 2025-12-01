@@ -101,14 +101,102 @@ def main(
             sys.exit(1)
         return
 
+    # --unset オプションの処理
+    if unset:
+        from awsop.app.credentials_manager import CredentialsManager
+
+        credentials_manager = CredentialsManager()
+        unset_commands = credentials_manager.format_unset_commands()
+        print(unset_commands)
+        return
+
     # 引数なしで実行された場合はヘルプを表示
-    if profile is None and not show_commands and not unset:
+    if profile is None and not show_commands:
         print("使用方法: awsop [OPTIONS] [PROFILE]", file=sys.stderr)
         print("詳細は --help オプションを参照してください", file=sys.stderr)
         sys.exit(0)
 
-    # 実装は後続のタスクで行う
-    pass
+    # プロファイル切り替え処理（タスク13）
+    if profile:
+        from awsop.app.credentials_manager import CredentialsManager
+        from awsop.ui.console import ConsoleUI
+        from datetime import datetime
+
+        ui = ConsoleUI()
+
+        try:
+            # ProfileManagerを使用してプロファイル設定を取得（要件1.1）
+            profile_manager = ProfileManager(config_file=config_file)
+            profile_config = profile_manager.get_profile(profile)
+
+            # role_arnが定義されているかチェック（要件1.2, 1.3）
+            if not profile_config.role_arn:
+                ui.error(f"プロファイル '{profile}' に role_arn が定義されていません")
+                sys.exit(1)
+
+            # リージョンの決定（要件4.2.1, 4.2.2, 4.2.3）
+            # --region オプション > プロファイルのregion > デフォルト（ap-northeast-1）
+            effective_region = region or profile_config.region or "ap-northeast-1"
+
+            # セッション名の決定（要件4.3.1, 4.3.2）
+            if not session_name:
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                session_name = f"awsop-{timestamp}"
+
+            # CredentialsManagerを使用して認証情報を取得
+            credentials_manager = CredentialsManager()
+
+            # スピナーを表示しながら認証情報を取得（要件8.1）
+            with ui.spinner("1Password経由で認証情報を取得中..."):
+                credentials = credentials_manager.assume_role(
+                    role_arn=profile_config.role_arn,
+                    session_name=session_name,
+                    duration=role_duration,
+                    region=effective_region,
+                    profile=profile,
+                    external_id=profile_config.external_id or external_id,
+                    mfa_token=mfa_token,
+                )
+
+            # 成功メッセージを表示（要件8.2）
+            expiration_str = credentials.expiration.strftime("%Y-%m-%d %H:%M:%S")
+            ui.success(
+                f"プロファイル '{profile}' の認証情報を取得しました（有効期限: {expiration_str}）"
+            )
+
+            # export コマンドを標準出力に出力（要件1.4, 5.4）
+            export_commands = credentials_manager.format_export_commands(credentials)
+            print(export_commands)
+
+        except FileNotFoundError:
+            ui.error("AWS設定ファイルが見つかりません")
+            if debug:
+                import traceback
+
+                traceback.print_exc()
+            sys.exit(1)
+        except KeyError:
+            ui.error(f"プロファイル '{profile}' が見つかりません")
+            if debug:
+                import traceback
+
+                traceback.print_exc()
+            sys.exit(1)
+        except RuntimeError as e:
+            ui.error(str(e))
+            if debug:
+                import traceback
+
+                traceback.print_exc()
+            sys.exit(1)
+        except Exception as e:
+            ui.error(f"予期しないエラーが発生しました: {str(e)}")
+            if debug:
+                import traceback
+
+                traceback.print_exc()
+            sys.exit(1)
+        return
 
 
 if __name__ == "__main__":
