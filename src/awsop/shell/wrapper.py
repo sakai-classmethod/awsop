@@ -14,7 +14,7 @@ function awsop() {
   local info_option=false
   for arg in "$@"; do
     case "$arg" in
-      -h|--help|-v|--version|-l|--list-profiles|--init-shell)
+      -h|--help|-v|--version|-l|--list-profiles|--init-shell|-s|--show-commands)
         info_option=true
         break
         ;;

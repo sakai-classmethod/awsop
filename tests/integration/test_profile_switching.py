@@ -79,21 +79,21 @@ source_profile = default
                 f"Exit code: {result.exit_code}, stderr: {result.stderr}"
             )
 
-            # 標準出力にexportコマンドが含まれることを確認（要件4.1）
-            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stdout
+            # --show-commandsオプション付きの場合は標準エラー出力にexportコマンドが含まれる（要件2.1）
+            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stderr
             assert (
                 "export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-                in result.stdout
+                in result.stderr
             )
-            assert "export AWS_SESSION_TOKEN=FwoGZXIvYXdzEBYaDH..." in result.stdout
-            assert "export AWS_REGION=us-west-2" in result.stdout
-            assert "export AWS_DEFAULT_REGION=us-west-2" in result.stdout
-            assert "export AWS_PROFILE=test-profile" in result.stdout
-            assert "export AWSOP_PROFILE=test-profile" in result.stdout
-            assert "export AWSOP_EXPIRATION=" in result.stdout
+            assert "export AWS_SESSION_TOKEN=FwoGZXIvYXdzEBYaDH..." in result.stderr
+            assert "export AWS_REGION=us-west-2" in result.stderr
+            assert "export AWS_DEFAULT_REGION=us-west-2" in result.stderr
+            assert "export AWS_PROFILE=test-profile" in result.stderr
+            assert "export AWSOP_PROFILE=test-profile" in result.stderr
+            assert "export AWSOP_EXPIRATION=" in result.stderr
 
-            # --show-commandsオプション付きの場合は標準エラー出力は空
-            # （exportコマンドのみを標準出力に出力）
+            # 標準出力にはexportコマンドが含まれない
+            assert "export AWS_ACCESS_KEY_ID" not in result.stdout
 
 
 def test_profile_switching_no_role_arn():
@@ -209,15 +209,15 @@ region = us-west-2
             # 終了コードが0であることを確認
             assert result.exit_code == 0
 
-            # 標準出力にap-northeast-1が含まれることを確認
-            assert "export AWS_REGION=ap-northeast-1" in result.stdout
-            assert "export AWS_DEFAULT_REGION=ap-northeast-1" in result.stdout
+            # --show-commandsオプション付きの場合は標準エラー出力にap-northeast-1が含まれることを確認
+            assert "export AWS_REGION=ap-northeast-1" in result.stderr
+            assert "export AWS_DEFAULT_REGION=ap-northeast-1" in result.stderr
 
 
 def test_profile_switching_without_show_commands():
     """--show-commandsオプションなしの場合のテスト
 
-    デフォルトではexportコマンドと有効期限メッセージの両方を出力する
+    デフォルトではexportコマンドを標準出力に出力し、有効期限メッセージを標準エラー出力に表示する
     """
     # テスト用の設定ファイルを作成
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -262,9 +262,14 @@ region = us-west-2
             # 終了コードが0であることを確認
             assert result.exit_code == 0
 
-            # 標準出力にexportコマンドが含まれないことを確認（要件1.5）
-            assert "export AWS_ACCESS_KEY_ID" not in result.stdout
-            assert "export AWS_SECRET_ACCESS_KEY" not in result.stdout
+            # 標準出力にexportコマンドが含まれることを確認（要件1.1）
+            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stdout
+            assert (
+                "export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+                in result.stdout
+            )
+            assert "export AWS_SESSION_TOKEN=FwoGZXIvYXdzEBYaDH..." in result.stdout
+            assert "export AWS_REGION=us-west-2" in result.stdout
 
             # 標準エラー出力に有効期限メッセージが含まれることを確認（要件1.4）
             assert "Credentials will expire" in result.stderr
@@ -319,6 +324,6 @@ role_arn = arn:aws:iam::123456789012:role/TestRole
             # 終了コードが0であることを確認
             assert result.exit_code == 0
 
-            # 標準出力にap-northeast-1が含まれることを確認
-            assert "export AWS_REGION=ap-northeast-1" in result.stdout
-            assert "export AWS_DEFAULT_REGION=ap-northeast-1" in result.stdout
+            # --show-commandsオプション付きの場合は標準エラー出力にap-northeast-1が含まれることを確認
+            assert "export AWS_REGION=ap-northeast-1" in result.stderr
+            assert "export AWS_DEFAULT_REGION=ap-northeast-1" in result.stderr

@@ -65,8 +65,8 @@ region = us-west-2
             )
 
             assert result.exit_code == 0
-            assert "export AWS_REGION=ap-northeast-1" in result.stdout
-            assert "export AWS_DEFAULT_REGION=ap-northeast-1" in result.stdout
+            assert "export AWS_REGION=ap-northeast-1" in result.stderr
+            assert "export AWS_DEFAULT_REGION=ap-northeast-1" in result.stderr
 
 
 def test_combination_role_duration_and_external_id():
@@ -117,7 +117,7 @@ role_arn = arn:aws:iam::123456789012:role/TestRole
             )
 
             assert result.exit_code == 0
-            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stdout
+            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stderr
 
 
 def test_combination_output_profile_and_show_commands():
@@ -173,7 +173,7 @@ role_arn = arn:aws:iam::123456789012:role/TestRole
 
             assert result.exit_code == 0
             # exportコマンドが標準出力に含まれる
-            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stdout
+            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stderr
             # 認証情報ファイルにも書き込まれる
             credentials_content = credentials_file.read_text()
             assert "[output-test]" in credentials_content
@@ -215,8 +215,8 @@ def test_combination_role_arn_and_region():
         )
 
         assert result.exit_code == 0
-        assert "export AWS_REGION=eu-west-1" in result.stdout
-        assert "export AWS_DEFAULT_REGION=eu-west-1" in result.stdout
+        assert "export AWS_REGION=eu-west-1" in result.stderr
+        assert "export AWS_DEFAULT_REGION=eu-west-1" in result.stderr
 
 
 def test_combination_source_profile_and_role_arn():
@@ -267,7 +267,7 @@ region = us-west-2
             )
 
             assert result.exit_code == 0
-            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stdout
+            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stderr
 
 
 def test_combination_all_logging_options():
@@ -372,7 +372,7 @@ role_arn = arn:aws:iam::123456789012:role/CustomRole
             )
 
             assert result.exit_code == 0
-            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stdout
+            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stderr
             # カスタム認証情報ファイルに書き込まれる
             credentials_content = credentials_file.read_text()
             assert "[output-custom]" in credentials_content
@@ -428,7 +428,7 @@ role_arn = arn:aws:iam::123456789012:role/TestRole
             )
 
             assert result.exit_code == 0
-            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stdout
+            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stderr
 
 
 def test_combination_region_override_with_output_profile():
@@ -487,7 +487,7 @@ region = us-west-2
 
             assert result.exit_code == 0
             # リージョンが上書きされている
-            assert "export AWS_REGION=ap-northeast-1" in result.stdout
+            assert "export AWS_REGION=ap-northeast-1" in result.stderr
             # 認証情報ファイルに書き込まれる
             credentials_content = credentials_file.read_text()
             assert "[output-region]" in credentials_content
@@ -536,5 +536,5 @@ def test_combination_role_arn_with_all_options():
         )
 
         assert result.exit_code == 0
-        assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stdout
-        assert "export AWS_REGION=eu-central-1" in result.stdout
+        assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stderr
+        assert "export AWS_REGION=eu-central-1" in result.stderr

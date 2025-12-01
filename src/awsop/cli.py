@@ -240,7 +240,19 @@ def main(
                     ui.error(str(e))
                     sys.exit(1)
 
-            # 有効期限情報を常に表示（標準エラー出力）（要件1.1, 1.4）
+            # exportコマンドを生成
+            export_commands = credentials_manager.format_export_commands(credentials)
+
+            # --show-commandsオプションの有無で出力先を変更
+            if show_commands:
+                # --show-commandsオプション使用時は標準エラー出力にexportコマンドを表示（要件2.1）
+                # Richの自動折り返しを避けるため、標準エラー出力に直接出力
+                print(export_commands, file=sys.stderr)
+            else:
+                # デフォルトで常にexportコマンドを標準出力に出力（要件1.1）
+                print(export_commands)
+
+            # 有効期限情報を常に表示（標準エラー出力）（要件1.4）
             import zoneinfo
 
             jst = zoneinfo.ZoneInfo("Asia/Tokyo")
@@ -248,13 +260,6 @@ def main(
             expiration_str = expiration_jst.strftime("%Y-%m-%d %H:%M:%S %Z")
             # Rich markupで角括弧をエスケープ（\[...] でリテラル表示）
             ui.info(f"\\[{effective_profile}] Credentials will expire {expiration_str}")
-
-            # --show-commandsオプションが指定された場合のみ、exportコマンドを標準出力に出力（要件1.2, 1.3）
-            if show_commands:
-                export_commands = credentials_manager.format_export_commands(
-                    credentials
-                )
-                print(export_commands)
 
         except FileNotFoundError as e:
             # 要件11.3: AWS設定ファイルの読み取りが失敗

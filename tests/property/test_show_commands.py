@@ -33,7 +33,7 @@ runner = CliRunner()
     expiration=expirations,
 )
 @settings(max_examples=100, deadline=None)
-def test_property_1_show_commands_true(
+def test_property_2_show_commands_option(
     profile: str,
     role_arn: str,
     region: str,
@@ -42,14 +42,13 @@ def test_property_1_show_commands_true(
     session_token: str,
     expiration: datetime,
 ):
-    """Feature: show-commands-fix, Property 1: show-commandsフラグがTrueの場合の完全な動作
+    """Feature: shell-wrapper-credentials, Property 2: show-commandsオプション使用時の動作
 
-    任意の有効なプロファイルと認証情報に対して、show_commands=Trueで実行した場合、
-    標準エラー出力に有効期限情報が含まれ、かつ標準出力にexportコマンド
-    （AWS_ACCESS_KEY_ID、AWS_SECRET_ACCESS_KEY、AWS_SESSION_TOKEN、
-    AWS_REGION、AWS_DEFAULT_REGIONを含む）が含まれる必要があります。
+    任意の有効なプロファイルと認証情報に対して、--show-commandsオプションを指定した場合、
+    標準出力にexportコマンドが含まれ、標準エラー出力に有効期限情報とexportコマンドの
+    両方が含まれる必要があります。
 
-    検証: 要件 1.1, 1.2, 1.3, 2.1, 2.3
+    検証: 要件 2.1, 2.2
     """
     # テスト用の設定ファイルを作成
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -107,26 +106,31 @@ source_profile = default
                 f"stderr: {result.stderr}"
             )
 
-            # 標準出力にexportコマンドが含まれることを確認
-            assert f"export AWS_ACCESS_KEY_ID={access_key_id}" in result.stdout, (
-                "AWS_ACCESS_KEY_IDが標準出力に含まれていません"
-            )
-            assert (
-                f"export AWS_SECRET_ACCESS_KEY={secret_access_key}" in result.stdout
-            ), "AWS_SECRET_ACCESS_KEYが標準出力に含まれていません"
-            assert f"export AWS_SESSION_TOKEN={session_token}" in result.stdout, (
-                "AWS_SESSION_TOKENが標準出力に含まれていません"
-            )
-            assert f"export AWS_REGION={region}" in result.stdout, (
-                "AWS_REGIONが標準出力に含まれていません"
-            )
-            assert f"export AWS_DEFAULT_REGION={region}" in result.stdout, (
-                "AWS_DEFAULT_REGIONが標準出力に含まれていません"
+            # 標準出力にexportコマンドが含まれないことを確認
+            assert "export AWS_ACCESS_KEY_ID" not in result.stdout, (
+                "exportコマンドが標準出力に含まれています"
             )
 
             # 標準エラー出力に有効期限情報が含まれることを確認
             assert "Credentials will expire" in result.stderr, (
                 "有効期限情報が標準エラー出力に含まれていません"
+            )
+
+            # 標準エラー出力にexportコマンドが含まれることを確認
+            assert f"export AWS_ACCESS_KEY_ID={access_key_id}" in result.stderr, (
+                "AWS_ACCESS_KEY_IDが標準エラー出力に含まれていません"
+            )
+            assert (
+                f"export AWS_SECRET_ACCESS_KEY={secret_access_key}" in result.stderr
+            ), "AWS_SECRET_ACCESS_KEYが標準エラー出力に含まれていません"
+            assert f"export AWS_SESSION_TOKEN={session_token}" in result.stderr, (
+                "AWS_SESSION_TOKENが標準エラー出力に含まれていません"
+            )
+            assert f"export AWS_REGION={region}" in result.stderr, (
+                "AWS_REGIONが標準エラー出力に含まれていません"
+            )
+            assert f"export AWS_DEFAULT_REGION={region}" in result.stderr, (
+                "AWS_DEFAULT_REGIONが標準エラー出力に含まれていません"
             )
 
 
@@ -140,7 +144,7 @@ source_profile = default
     expiration=expirations,
 )
 @settings(max_examples=100, deadline=None)
-def test_property_2_show_commands_false(
+def test_property_1_default_behavior(
     profile: str,
     role_arn: str,
     region: str,
@@ -149,13 +153,12 @@ def test_property_2_show_commands_false(
     session_token: str,
     expiration: datetime,
 ):
-    """Feature: show-commands-fix, Property 2: show-commandsフラグがFalseの場合の完全な動作
+    """Feature: shell-wrapper-credentials, Property 1: デフォルト動作でのexportコマンド出力
 
-    任意の有効なプロファイルと認証情報に対して、show_commands=Falseで実行した場合、
-    標準エラー出力に有効期限情報が含まれ、かつ標準出力にexportコマンドが
-    含まれない必要があります。
+    任意の有効なプロファイルと認証情報に対して、--show-commandsオプションなしで実行した場合、
+    標準出力にexportコマンドが含まれ、標準エラー出力には有効期限情報のみが含まれる必要があります。
 
-    検証: 要件 1.4, 1.5, 2.2, 2.4
+    検証: 要件 1.1, 1.4, 1.5
     """
     # テスト用の設定ファイルを作成
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -212,18 +215,29 @@ source_profile = default
                 f"stderr: {result.stderr}"
             )
 
-            # 標準出力にexportコマンドが含まれないことを確認
-            assert "export AWS_ACCESS_KEY_ID" not in result.stdout, (
-                "exportコマンドが標準出力に含まれています"
+            # 標準出力にexportコマンドが含まれることを確認
+            assert f"export AWS_ACCESS_KEY_ID={access_key_id}" in result.stdout, (
+                "AWS_ACCESS_KEY_IDが標準出力に含まれていません"
             )
-            assert "export AWS_SECRET_ACCESS_KEY" not in result.stdout, (
-                "exportコマンドが標準出力に含まれています"
+            assert (
+                f"export AWS_SECRET_ACCESS_KEY={secret_access_key}" in result.stdout
+            ), "AWS_SECRET_ACCESS_KEYが標準出力に含まれていません"
+            assert f"export AWS_SESSION_TOKEN={session_token}" in result.stdout, (
+                "AWS_SESSION_TOKENが標準出力に含まれていません"
             )
-            assert "export AWS_SESSION_TOKEN" not in result.stdout, (
-                "exportコマンドが標準出力に含まれています"
+            assert f"export AWS_REGION={region}" in result.stdout, (
+                "AWS_REGIONが標準出力に含まれていません"
+            )
+            assert f"export AWS_DEFAULT_REGION={region}" in result.stdout, (
+                "AWS_DEFAULT_REGIONが標準出力に含まれていません"
             )
 
             # 標準エラー出力に有効期限情報が含まれることを確認
             assert "Credentials will expire" in result.stderr, (
                 "有効期限情報が標準エラー出力に含まれていません"
+            )
+
+            # 標準エラー出力にexportコマンドが含まれないことを確認
+            assert "export AWS_ACCESS_KEY_ID" not in result.stderr, (
+                "exportコマンドが標準エラー出力に含まれています"
             )
