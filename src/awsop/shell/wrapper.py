@@ -2,6 +2,41 @@
 
 
 def generate_shell_wrapper() -> str:
-    """シェルラッパー関数を生成"""
-    # TODO: 実装は後続のタスクで行う
-    raise NotImplementedError()
+    """
+    zsh用のシェルラッパー関数と補完スクリプトを生成
+
+    Returns:
+        str: シェルスクリプト文字列
+    """
+    return """# awsop シェルラッパー関数
+function awsop() {
+  local output
+  output=$(command awsop "$@" 2>&1)
+  local exit_code=$?
+
+  if [[ $exit_code -eq 0 ]]; then
+    # export コマンドを eval
+    eval "$output"
+  else
+    # エラーメッセージを表示
+    echo "$output" >&2
+    return $exit_code
+  fi
+}
+
+# zsh 補完（正規表現による部分一致）
+_awsop() {
+  local -a profiles
+  if [[ -f ~/.aws/config ]]; then
+    profiles=($(sed -nE 's/^\\[(profile )?([^]]+)\\]/\\2/p' ~/.aws/config))
+  fi
+
+  # 正規表現による部分一致補完を有効化
+  _describe 'profile' profiles
+}
+compdef _awsop awsop
+
+# zsh の matcher-list 設定で部分一致を有効化
+# ユーザーは .zshrc に以下を追加することを推奨:
+# zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
+"""
