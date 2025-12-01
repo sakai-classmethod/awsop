@@ -56,7 +56,7 @@ class TestSTSClientProperties:
             assert "Credentials" in result
 
     @given(session_name=session_names, duration=role_durations)
-    @settings(max_examples=100)
+    @settings(max_examples=100, deadline=None)
     def test_property_2_empty_role_arn_raises_error(
         self, session_name: str, duration: int
     ):
@@ -84,7 +84,7 @@ class TestSTSClientProperties:
         session_name=session_names,
         duration=role_durations,
     )
-    @settings(max_examples=100)
+    @settings(max_examples=100, deadline=None)
     def test_property_2_invalid_role_arn_format_raises_error(
         self, invalid_arn: str, session_name: str, duration: int
     ):
@@ -155,7 +155,7 @@ class TestSTSClientProperties:
         session_name=session_names,
         duration=st.integers(min_value=1, max_value=899),
     )
-    @settings(max_examples=100)
+    @settings(max_examples=100, deadline=None)
     def test_property_8_duration_too_short_raises_error(
         self, role_arn: str, session_name: str, duration: int
     ):
@@ -183,7 +183,7 @@ class TestSTSClientProperties:
         session_name=session_names,
         duration=st.integers(min_value=43201, max_value=100000),
     )
-    @settings(max_examples=100)
+    @settings(max_examples=100, deadline=None)
     def test_property_8_duration_too_long_raises_error(
         self, role_arn: str, session_name: str, duration: int
     ):

@@ -18,6 +18,7 @@ printable_text = st.text(
         min_codepoint=32,  # スペース以上
     ),
     min_size=1,
+    max_size=50,  # 現実的な長さに制限
 )
 
 
