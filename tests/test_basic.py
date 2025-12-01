@@ -5,7 +5,11 @@ import awsop
 
 def test_version():
     """バージョン情報が正しく設定されているか確認"""
-    assert awsop.__version__ == "1.0.0"
+    # バージョンが文字列型であることを確認
+    assert isinstance(awsop.__version__, str)
+    # 空文字列でないことを確認
+    assert len(awsop.__version__) > 0
+    # 詳細なバージョンチェックはtest_version_installed.pyで実施
 
 
 def test_imports():
