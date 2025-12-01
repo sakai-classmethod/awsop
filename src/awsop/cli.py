@@ -138,6 +138,13 @@ def main(
             # --region オプション > プロファイルのregion > デフォルト（ap-northeast-1）
             effective_region = region or profile_config.region or "ap-northeast-1"
 
+            # ロール期間のバリデーション（要件4.4.3）
+            if role_duration < 1 or role_duration > 43200:
+                ui.error(
+                    f"ロール期間は1から43200秒の範囲で指定してください（指定値: {role_duration}秒）"
+                )
+                sys.exit(1)
+
             # セッション名の決定（要件4.3.1, 4.3.2）
             if not session_name:
                 timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
