@@ -10,6 +10,24 @@ def generate_shell_wrapper() -> str:
     """
     return """# awsop シェルラッパー関数
 function awsop() {
+  # ヘルプ、バージョン、リストなどの情報表示オプションをチェック
+  local info_option=false
+  for arg in "$@"; do
+    case "$arg" in
+      -h|--help|-v|--version|-l|--list-profiles|--init-shell)
+        info_option=true
+        break
+        ;;
+    esac
+  done
+
+  if [[ "$info_option" == "true" ]]; then
+    # 情報表示オプションの場合は eval せずに直接実行
+    command awsop "$@"
+    return $?
+  fi
+
+  # 通常の認証情報取得の場合は eval
   local output
   # stdout のみをキャプチャ（stderr はそのままターミナルに表示）
   output=$(command awsop "$@")

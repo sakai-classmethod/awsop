@@ -13,12 +13,14 @@ app = typer.Typer(
     add_completion=False,  # 補完機能は--init-shellで提供
     rich_markup_mode="rich",
     help="AWS credentials manager with 1Password integration",
-    # -h を --help の短縮形として有効化
-    context_settings={"help_option_names": ["-h", "--help"]},
 )
 
 
-@app.command()
+# -h を --help の短縮形として有効化し、コマンドなしで実行可能にする
+@app.callback(
+    invoke_without_command=True,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 def main(
     profile: Optional[str] = typer.Argument(None, help="AWS profile name"),
     show_commands: bool = typer.Option(
