@@ -12,9 +12,11 @@ from awsop.ui.console import ConsoleUI
 
 # 印字可能な文字列のみを生成する戦略
 # 制御文字はRichライブラリが処理する際に変換されるため除外
+# バックスラッシュもRichのエスケープ処理により変換されるため除外
 printable_text = st.text(
     alphabet=st.characters(
         blacklist_categories=("Cc", "Cs"),  # 制御文字とサロゲートを除外
+        blacklist_characters="\\",  # バックスラッシュを除外
         min_codepoint=32,  # スペース以上
     ),
     min_size=1,

@@ -262,14 +262,11 @@ region = us-west-2
             # 終了コードが0であることを確認
             assert result.exit_code == 0
 
-            # 標準出力にexportコマンドが含まれることを確認
-            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stdout
-            assert (
-                "export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-                in result.stdout
-            )
+            # 標準出力にexportコマンドが含まれないことを確認（要件1.5）
+            assert "export AWS_ACCESS_KEY_ID" not in result.stdout
+            assert "export AWS_SECRET_ACCESS_KEY" not in result.stdout
 
-            # 標準エラー出力に有効期限メッセージが含まれることを確認
+            # 標準エラー出力に有効期限メッセージが含まれることを確認（要件1.4）
             assert "Credentials will expire" in result.stderr
             assert "JST" in result.stderr
 
