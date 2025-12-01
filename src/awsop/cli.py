@@ -3,48 +3,62 @@
 import typer
 from typing import Optional
 
-app = typer.Typer()
+app = typer.Typer(
+    add_completion=False,  # 補完機能は--init-shellで提供
+    rich_markup_mode="rich",
+    help="AWS credentials manager with 1Password integration",
+)
 
 
 @app.command()
 def main(
-    profile: Optional[str] = typer.Argument(None, help="AWSプロファイル名"),
+    profile: Optional[str] = typer.Argument(None, help="AWS profile name"),
     show_commands: bool = typer.Option(
-        False, "--show-commands", "-s", help="exportコマンドを表示"
+        False, "--show-commands", "-s", help="Show export commands"
     ),
-    unset: bool = typer.Option(False, "--unset", "-u", help="環境変数をクリア"),
+    unset: bool = typer.Option(
+        False, "--unset", "-u", help="Clear environment variables"
+    ),
     list_profiles: bool = typer.Option(
-        False, "--list-profiles", "-l", help="プロファイル一覧を表示"
+        False, "--list-profiles", "-l", help="List available profiles"
     ),
     init_shell: bool = typer.Option(
-        False, "--init-shell", help="シェルラッパー関数を出力"
+        False, "--init-shell", help="Output shell wrapper function"
     ),
-    region: Optional[str] = typer.Option(None, "--region", help="AWSリージョン"),
+    region: Optional[str] = typer.Option(None, "--region", help="AWS region"),
     session_name: Optional[str] = typer.Option(
-        None, "--session-name", help="セッション名"
+        None, "--session-name", help="AssumeRole session name"
     ),
-    role_duration: int = typer.Option(3600, "--role-duration", help="ロール期間（秒）"),
-    mfa_token: Optional[str] = typer.Option(None, "--mfa-token", help="MFAトークン"),
+    role_duration: int = typer.Option(
+        3600,
+        "--role-duration",
+        help="Role duration in seconds (default: 3600)",
+    ),
+    mfa_token: Optional[str] = typer.Option(None, "--mfa-token", help="MFA token"),
     output_profile: Optional[str] = typer.Option(
-        None, "--output-profile", "-o", help="出力プロファイル名"
+        None, "--output-profile", "-o", help="Output profile name"
     ),
-    role_arn: Optional[str] = typer.Option(None, "--role-arn", help="ロールARN"),
+    role_arn: Optional[str] = typer.Option(
+        None, "--role-arn", help="Role ARN to assume"
+    ),
     source_profile: Optional[str] = typer.Option(
-        None, "--source-profile", help="ソースプロファイル"
+        None, "--source-profile", help="Source profile for credentials"
     ),
-    external_id: Optional[str] = typer.Option(None, "--external-id", help="外部ID"),
+    external_id: Optional[str] = typer.Option(
+        None, "--external-id", help="External ID for AssumeRole"
+    ),
     config_file: Optional[str] = typer.Option(
-        None, "--config-file", help="AWS設定ファイルパス"
+        None, "--config-file", help="AWS config file path"
     ),
     credentials_file: Optional[str] = typer.Option(
-        None, "--credentials-file", help="AWS認証情報ファイルパス"
+        None, "--credentials-file", help="AWS credentials file path"
     ),
-    info: bool = typer.Option(False, "--info", help="INFOレベルのログを表示"),
-    debug: bool = typer.Option(False, "--debug", help="DEBUGレベルのログを表示"),
-    version: bool = typer.Option(False, "--version", "-v", help="バージョン情報を表示"),
+    info: bool = typer.Option(False, "--info", help="Show INFO level logs"),
+    debug: bool = typer.Option(False, "--debug", help="Show DEBUG level logs"),
+    version: bool = typer.Option(False, "--version", "-v", help="Show version"),
 ) -> None:
-    """1Password連携によるAWS認証情報管理ツール"""
-    # TODO: 実装は後続のタスクで行う
+    """AWS credentials manager with 1Password integration"""
+    # 実装は後続のタスクで行う
     pass
 
 

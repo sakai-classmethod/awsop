@@ -1,7 +1,19 @@
 """AWS STS APIとの統合"""
 
+from dataclasses import dataclass
 from typing import Optional
 from datetime import datetime
+
+
+@dataclass
+class AssumeRoleRequest:
+    """AssumeRoleリクエストパラメータ"""
+
+    role_arn: str
+    role_session_name: str
+    duration_seconds: int = 3600
+    external_id: Optional[str] = None
+    mfa_token: Optional[str] = None
 
 
 class STSClient:
