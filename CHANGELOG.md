@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- pyproject.toml からの動的バージョン取得機能
+  - `__version__` を pyproject.toml から自動的に読み取るように変更
+  - バージョン情報の一元管理を実現
 - zsh シェル補完機能の拡張
   - コマンドラインオプションの補完をサポート
   - `-` で始まる入力時に、すべての利用可能なオプションを説明付きで表示
@@ -62,5 +65,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 1Password による安全な認証情報管理
 - Touch ID による MFA 認証
 
-[Unreleased]: https://github.com/yourusername/awsop/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/yourusername/awsop/releases/tag/v1.0.0
+[Unreleased]: https://github.com/sakai-classmethod/awsop/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/sakai-classmethod/awsop/releases/tag/v1.0.0

@@ -21,7 +21,7 @@ awsop production
 
 # 成功すると以下のような出力が表示されます
 # ✓ プロファイル 'production' の認証情報を取得しました
-# 有効期限: 2024-12-01 15:30:00 JST
+# 有効期限: 2025-12-01 15:30:00 JST
 ```
 
 ### 現在の認証状態を確認
@@ -32,7 +32,7 @@ echo $AWS_PROFILE
 # => production
 
 echo $AWSOP_EXPIRATION
-# => 2024-12-01T15:30:00+09:00
+# => 2025-12-01T15:30:00+09:00
 
 # AWS CLI で確認
 aws sts get-caller-identity
@@ -78,7 +78,7 @@ awsop production --show-commands
 # export AWS_DEFAULT_REGION=ap-northeast-1
 # export AWS_PROFILE=production
 # export AWSOP_PROFILE=production
-# export AWSOP_EXPIRATION=2024-12-01T15:30:00+09:00
+# export AWSOP_EXPIRATION=2025-12-01T15:30:00+09:00
 ```
 
 ## リージョンとセッション設定
