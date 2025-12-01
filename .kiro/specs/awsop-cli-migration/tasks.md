@@ -42,14 +42,14 @@
   - **Property 4: プロファイル一覧の完全性**
   - **検証: 要件 3.1, 3.2**
 
-- [ ] 4. 1Password 統合の実装
+- [x] 4. 1Password 統合の実装
 
   - OnePasswordClient クラスを実装
   - check_availability メソッドを実装（op コマンド存在確認）
   - run_aws_command メソッドを実装（op plugin run 経由）
   - _要件: 6.1, 7.1_
 
-- [ ] 4.1 1Password クライアントのユニットテスト
+- [x] 4.1 1Password クライアントのユニットテスト
 
   - op コマンド存在確認のテスト
   - op plugin run 実行のテスト（モック使用）
