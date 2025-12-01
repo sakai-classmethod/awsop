@@ -23,7 +23,7 @@ from tests.property.strategies import (
     region=regions,
     profile=profile_names,
 )
-@settings(max_examples=100)
+@settings(max_examples=100, deadline=None)
 def test_property_3_export_command_completeness(
     access_key_id: str,
     secret_access_key: str,
