@@ -4,7 +4,12 @@ version = "1.0.0"
 description = "1Password連携によるAWS認証情報管理ツール"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = ["typer>=0.9.0", "rich>=13.0.0", "boto3>=1.28.0"]
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    "boto3>=1.28.0",
+    "python-dateutil>=2.8.0",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.4.0", "hypothesis>=6.82.0", "pytest-cov>=4.1.0"]
@@ -25,3 +30,10 @@ python_functions = ["test_*"]
 [tool.coverage.run]
 source = ["src"]
 omit = ["tests/*"]
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.148.3",
+    "pytest>=9.0.1",
+    "pytest-cov>=7.0.0",
+]

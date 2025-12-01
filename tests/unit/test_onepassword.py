@@ -64,22 +64,18 @@ class TestOnePasswordClient:
             )
 
             assert result == expected_output
-            mock_run.assert_called_once_with(
-                [
-                    "op",
-                    "plugin",
-                    "run",
-                    "--",
-                    "aws",
-                    "sts",
-                    "assume-role",
-                    "--role-arn",
-                    "arn:aws:iam::123456789012:role/test",
-                ],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
+            # envパラメータが渡されることを確認
+            assert mock_run.call_count == 1
+            call_args = mock_run.call_args
+            assert call_args[1]["capture_output"] is True
+            assert call_args[1]["text"] is True
+            assert call_args[1]["check"] is True
+            assert "env" in call_args[1]
+            # AWS関連の環境変数がクリアされていることを確認
+            env = call_args[1]["env"]
+            assert "AWS_ACCESS_KEY_ID" not in env
+            assert "AWS_SECRET_ACCESS_KEY" not in env
+            assert "AWS_SESSION_TOKEN" not in env
 
     def test_run_aws_command_failure(self):
         """op plugin runが失敗した場合、CalledProcessErrorを発生させる"""

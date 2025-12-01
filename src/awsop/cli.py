@@ -158,15 +158,19 @@ def main(
                     mfa_token=mfa_token,
                 )
 
-            # 成功メッセージを表示（要件8.2）
-            expiration_str = credentials.expiration.strftime("%Y-%m-%d %H:%M:%S")
-            ui.success(
-                f"プロファイル '{profile}' の認証情報を取得しました（有効期限: {expiration_str}）"
-            )
-
-            # export コマンドを標準出力に出力（要件1.4, 5.4）
+            # exportコマンドを標準出力に出力（要件1.4, 5.4）
             export_commands = credentials_manager.format_export_commands(credentials)
             print(export_commands)
+
+            # --show-commandsオプションがない場合は、有効期限も表示
+            if not show_commands:
+                # JSTに変換して表示
+                import zoneinfo
+
+                jst = zoneinfo.ZoneInfo("Asia/Tokyo")
+                expiration_jst = credentials.expiration.astimezone(jst)
+                expiration_str = expiration_jst.strftime("%Y-%m-%d %H:%M:%S %Z")
+                ui.info(f"[{profile}] Credentials will expire {expiration_str}")
 
         except FileNotFoundError:
             ui.error("AWS設定ファイルが見つかりません")

@@ -113,12 +113,20 @@ class CredentialsManager:
             # レスポンスから認証情報を抽出
             credentials_data = response["Credentials"]
 
+            # Expirationをdatetimeオブジェクトに変換
+            expiration = credentials_data["Expiration"]
+            if isinstance(expiration, str):
+                # ISO 8601形式の文字列をdatetimeに変換
+                from dateutil import parser as date_parser
+
+                expiration = date_parser.isoparse(expiration)
+
             # Credentialsオブジェクトを作成
             credentials = Credentials(
                 access_key_id=credentials_data["AccessKeyId"],
                 secret_access_key=credentials_data["SecretAccessKey"],
                 session_token=credentials_data["SessionToken"],
-                expiration=credentials_data["Expiration"],
+                expiration=expiration,
                 region=region,
                 profile=profile,
             )

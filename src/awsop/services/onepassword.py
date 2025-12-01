@@ -29,11 +29,29 @@ class OnePasswordClient:
             subprocess.CalledProcessError: コマンド実行が失敗した場合
             json.JSONDecodeError: 出力のJSON解析が失敗した場合
         """
+        import os
+
+        # 環境変数をコピーして、AWS関連の環境変数をクリア
+        env = os.environ.copy()
+        aws_env_vars = [
+            "AWS_ACCESS_KEY_ID",
+            "AWS_SECRET_ACCESS_KEY",
+            "AWS_SESSION_TOKEN",
+            "AWS_PROFILE",
+            "AWS_DEFAULT_REGION",
+            "AWS_REGION",
+            "AWSOP_PROFILE",
+            "AWSOP_EXPIRATION",
+        ]
+        for var in aws_env_vars:
+            env.pop(var, None)
+
         full_command = ["op", "plugin", "run", "--", "aws"] + command
         result = subprocess.run(
             full_command,
             capture_output=True,
             text=True,
             check=True,
+            env=env,
         )
         return json.loads(result.stdout)

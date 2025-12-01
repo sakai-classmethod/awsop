@@ -62,12 +62,13 @@ source_profile = default
             mock_sts_client = Mock()
             mock_sts_client_class.return_value = mock_sts_client
 
-            # CLIを実行
+            # CLIを実行（--show-commandsオプション付き）
             result = runner.invoke(
                 app,
                 [
                     "--config-file",
                     str(config_file),
+                    "--show-commands",
                     "test-profile",
                 ],
                 catch_exceptions=False,
@@ -78,7 +79,7 @@ source_profile = default
                 f"Exit code: {result.exit_code}, stderr: {result.stderr}"
             )
 
-            # 標準出力にexportコマンドが含まれることを確認（要件1.4）
+            # 標準出力にexportコマンドが含まれることを確認（要件4.1）
             assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stdout
             assert (
                 "export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
@@ -91,9 +92,8 @@ source_profile = default
             assert "export AWSOP_PROFILE=test-profile" in result.stdout
             assert "export AWSOP_EXPIRATION=" in result.stdout
 
-            # 標準エラー出力に成功メッセージが含まれることを確認（要件8.2）
-            assert "test-profile" in result.stderr
-            assert "認証情報を取得しました" in result.stderr
+            # --show-commandsオプション付きの場合は標準エラー出力は空
+            # （exportコマンドのみを標準出力に出力）
 
 
 def test_profile_switching_no_role_arn():
@@ -192,7 +192,7 @@ region = us-west-2
             mock_op_client.run_aws_command.return_value = mock_response
             mock_op_client_class.return_value = mock_op_client
 
-            # CLIを実行（--regionオプションでap-northeast-1を指定）
+            # CLIを実行（--regionオプションと--show-commandsオプション付き）
             result = runner.invoke(
                 app,
                 [
@@ -200,6 +200,7 @@ region = us-west-2
                     str(config_file),
                     "--region",
                     "ap-northeast-1",
+                    "--show-commands",
                     "test-profile",
                 ],
                 catch_exceptions=False,
@@ -211,6 +212,66 @@ region = us-west-2
             # 標準出力にap-northeast-1が含まれることを確認
             assert "export AWS_REGION=ap-northeast-1" in result.stdout
             assert "export AWS_DEFAULT_REGION=ap-northeast-1" in result.stdout
+
+
+def test_profile_switching_without_show_commands():
+    """--show-commandsオプションなしの場合のテスト
+
+    デフォルトではexportコマンドと有効期限メッセージの両方を出力する
+    """
+    # テスト用の設定ファイルを作成
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_file = Path(tmpdir) / "config"
+        config_file.write_text(
+            """[profile test-profile]
+role_arn = arn:aws:iam::123456789012:role/TestRole
+region = us-west-2
+"""
+        )
+
+        # モックのレスポンスを作成
+        mock_response = {
+            "Credentials": {
+                "AccessKeyId": "AKIAIOSFODNN7EXAMPLE",
+                "SecretAccessKey": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                "SessionToken": "FwoGZXIvYXdzEBYaDH...",
+                "Expiration": datetime(2024, 12, 31, 23, 59, 59),
+            }
+        }
+
+        # OnePasswordClientをモック
+        with patch(
+            "awsop.app.credentials_manager.OnePasswordClient"
+        ) as mock_op_client_class:
+            mock_op_client = Mock()
+            mock_op_client.check_availability.return_value = True
+            mock_op_client.run_aws_command.return_value = mock_response
+            mock_op_client_class.return_value = mock_op_client
+
+            # CLIを実行（--show-commandsオプションなし）
+            result = runner.invoke(
+                app,
+                [
+                    "--config-file",
+                    str(config_file),
+                    "test-profile",
+                ],
+                catch_exceptions=False,
+            )
+
+            # 終了コードが0であることを確認
+            assert result.exit_code == 0
+
+            # 標準出力にexportコマンドが含まれることを確認
+            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stdout
+            assert (
+                "export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+                in result.stdout
+            )
+
+            # 標準エラー出力に有効期限メッセージが含まれることを確認
+            assert "Credentials will expire" in result.stderr
+            assert "JST" in result.stderr
 
 
 def test_profile_switching_with_default_region():
@@ -246,12 +307,13 @@ role_arn = arn:aws:iam::123456789012:role/TestRole
             mock_op_client.run_aws_command.return_value = mock_response
             mock_op_client_class.return_value = mock_op_client
 
-            # CLIを実行
+            # CLIを実行（--show-commandsオプション付き）
             result = runner.invoke(
                 app,
                 [
                     "--config-file",
                     str(config_file),
+                    "--show-commands",
                     "test-profile",
                 ],
                 catch_exceptions=False,
