@@ -61,3 +61,40 @@ def test_generate_shell_wrapper_contains_usage_hint():
     # zstyleの設定ヒントが含まれることを確認
     assert "zstyle" in output
     assert "matcher-list" in output
+
+
+def test_generate_shell_wrapper_contains_info_option_detection():
+    """情報表示オプションの検出ロジックが含まれることを確認"""
+    output = generate_shell_wrapper()
+
+    # 情報表示オプションの検出ロジックが含まれることを確認
+    assert "info_option=false" in output
+    assert "for arg in" in output
+    assert "case" in output
+    assert "-h|--help" in output
+    assert "-v|--version" in output
+    assert "-l|--list-profiles" in output
+    assert "--init-shell" in output
+    assert 'if [[ "$info_option" == "true" ]]' in output
+
+
+def test_generate_shell_wrapper_info_option_skips_eval():
+    """情報表示オプション使用時にevalをスキップすることを確認"""
+    output = generate_shell_wrapper()
+
+    # 情報表示オプションの場合は直接実行することを確認
+    assert "command awsop" in output
+    # evalの前に条件分岐があることを確認
+    lines = output.split("\n")
+    info_option_check_found = False
+    eval_found = False
+    for i, line in enumerate(lines):
+        if 'if [[ "$info_option" == "true" ]]' in line:
+            info_option_check_found = True
+            # この後にcommand awsopがあることを確認
+            for j in range(i + 1, min(i + 5, len(lines))):
+                if "command awsop" in lines[j] and "eval" not in lines[j]:
+                    eval_found = True
+                    break
+    assert info_option_check_found
+    assert eval_found
