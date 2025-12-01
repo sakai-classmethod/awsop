@@ -111,33 +111,22 @@ def main(
         return
 
     # 引数なしで実行された場合はヘルプを表示
-    if profile is None and not show_commands:
+    # ただし、--role-arnが指定されている場合は処理を続行
+    if profile is None and not show_commands and not role_arn:
         print("使用方法: awsop [OPTIONS] [PROFILE]", file=sys.stderr)
         print("詳細は --help オプションを参照してください", file=sys.stderr)
         sys.exit(0)
 
-    # プロファイル切り替え処理（タスク13）
-    if profile:
+    # プロファイル切り替え処理（タスク13, 15）
+    if profile or role_arn:
         from awsop.app.credentials_manager import CredentialsManager
         from awsop.ui.console import ConsoleUI
+        from awsop.services.credentials_writer import CredentialsWriter
         from datetime import datetime
 
         ui = ConsoleUI()
 
         try:
-            # ProfileManagerを使用してプロファイル設定を取得（要件1.1）
-            profile_manager = ProfileManager(config_file=config_file)
-            profile_config = profile_manager.get_profile(profile)
-
-            # role_arnが定義されているかチェック（要件1.2, 1.3）
-            if not profile_config.role_arn:
-                ui.error(f"プロファイル '{profile}' に role_arn が定義されていません")
-                sys.exit(1)
-
-            # リージョンの決定（要件4.2.1, 4.2.2, 4.2.3）
-            # --region オプション > プロファイルのregion > デフォルト（ap-northeast-1）
-            effective_region = region or profile_config.region or "ap-northeast-1"
-
             # ロール期間のバリデーション（要件4.4.3）
             if role_duration < 1 or role_duration > 43200:
                 ui.error(
@@ -150,20 +139,88 @@ def main(
                 timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
                 session_name = f"awsop-{timestamp}"
 
+            # ロールARNと外部IDの決定
+            effective_role_arn = None
+            effective_external_id = external_id
+            effective_region = region
+            effective_profile = profile
+
+            # --role-arnオプションが指定された場合（要件4.7.1）
+            if role_arn:
+                effective_role_arn = role_arn
+                effective_profile = effective_profile or "direct-role"
+
+                # --source-profileが指定された場合、そのプロファイルから設定を取得（要件4.7.3）
+                if source_profile:
+                    profile_manager = ProfileManager(config_file=config_file)
+                    source_config = profile_manager.get_profile(source_profile)
+                    # リージョンが指定されていない場合、ソースプロファイルのリージョンを使用
+                    if not effective_region:
+                        effective_region = source_config.region
+
+            # プロファイルが指定された場合
+            elif profile:
+                # ProfileManagerを使用してプロファイル設定を取得（要件1.1）
+                profile_manager = ProfileManager(config_file=config_file)
+                profile_config = profile_manager.get_profile(profile)
+
+                # role_arnが定義されているかチェック（要件1.2, 1.3）
+                if not profile_config.role_arn:
+                    ui.error(
+                        f"プロファイル '{profile}' に role_arn が定義されていません"
+                    )
+                    sys.exit(1)
+
+                effective_role_arn = profile_config.role_arn
+
+                # リージョンの決定（要件4.2.1, 4.2.2, 4.2.3）
+                # --region オプション > プロファイルのregion > デフォルト（ap-northeast-1）
+                if not effective_region:
+                    effective_region = profile_config.region
+
+                # 外部IDの決定（プロファイルの設定 < コマンドラインオプション）
+                if not effective_external_id:
+                    effective_external_id = profile_config.external_id
+
+            # リージョンのデフォルト値（要件4.2.3）
+            if not effective_region:
+                effective_region = "ap-northeast-1"
+
             # CredentialsManagerを使用して認証情報を取得
             credentials_manager = CredentialsManager()
 
             # スピナーを表示しながら認証情報を取得（要件8.1）
             with ui.spinner("1Password経由で認証情報を取得中..."):
                 credentials = credentials_manager.assume_role(
-                    role_arn=profile_config.role_arn,
+                    role_arn=effective_role_arn,
                     session_name=session_name,
                     duration=role_duration,
                     region=effective_region,
-                    profile=profile,
-                    external_id=profile_config.external_id or external_id,
+                    profile=effective_profile,
+                    external_id=effective_external_id,
                     mfa_token=mfa_token,
                 )
+
+            # --output-profileオプションが指定された場合、認証情報をファイルに書き込む（要件4.6.1）
+            if output_profile:
+                credentials_writer = CredentialsWriter(
+                    credentials_file=credentials_file
+                )
+
+                try:
+                    credentials_writer.write_profile(
+                        profile_name=output_profile,
+                        access_key_id=credentials.access_key_id,
+                        secret_access_key=credentials.secret_access_key,
+                        session_token=credentials.session_token,
+                    )
+                    ui.success(
+                        f"認証情報をプロファイル '{output_profile}' に書き込みました"
+                    )
+                except ValueError as e:
+                    # プロファイルが保護されている場合（要件4.6.2）
+                    ui.error(str(e))
+                    sys.exit(1)
 
             # exportコマンドを標準出力に出力（要件1.4, 5.4）
             export_commands = credentials_manager.format_export_commands(credentials)
@@ -177,7 +234,9 @@ def main(
                 jst = zoneinfo.ZoneInfo("Asia/Tokyo")
                 expiration_jst = credentials.expiration.astimezone(jst)
                 expiration_str = expiration_jst.strftime("%Y-%m-%d %H:%M:%S %Z")
-                ui.info(f"[{profile}] Credentials will expire {expiration_str}")
+                ui.info(
+                    f"[{effective_profile}] Credentials will expire {expiration_str}"
+                )
 
         except FileNotFoundError:
             ui.error("AWS設定ファイルが見つかりません")
@@ -187,7 +246,7 @@ def main(
                 traceback.print_exc()
             sys.exit(1)
         except KeyError:
-            ui.error(f"プロファイル '{profile}' が見つかりません")
+            ui.error(f"プロファイル '{profile or source_profile}' が見つかりません")
             if debug:
                 import traceback
 
