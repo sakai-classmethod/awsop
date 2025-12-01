@@ -245,8 +245,9 @@ def main(
                 jst = zoneinfo.ZoneInfo("Asia/Tokyo")
                 expiration_jst = credentials.expiration.astimezone(jst)
                 expiration_str = expiration_jst.strftime("%Y-%m-%d %H:%M:%S %Z")
+                # Rich markupで角括弧をエスケープ（\[...] でリテラル表示）
                 ui.info(
-                    f"[{effective_profile}] Credentials will expire {expiration_str}"
+                    f"\\[{effective_profile}] Credentials will expire {expiration_str}"
                 )
 
         except FileNotFoundError as e:
