@@ -58,7 +58,16 @@ secret_keys = st.text(
     max_size=40,
 )
 
-session_tokens = st.text(min_size=100, max_size=500)
+# ConfigParserは改行文字を値に含めることができないため、除外する
+# また、サロゲート文字も除外する（UTF-8エンコードできないため）
+session_tokens = st.text(
+    alphabet=st.characters(
+        blacklist_characters="\r\n",
+        blacklist_categories=("Cs",),  # サロゲート文字を除外
+    ),
+    min_size=100,
+    max_size=500,
+)
 
 expirations = st.datetimes(
     min_value=datetime.now(), max_value=datetime.now() + timedelta(hours=12)
