@@ -11,17 +11,15 @@ def generate_shell_wrapper() -> str:
     return """# awsop シェルラッパー関数
 function awsop() {
   local output
-  output=$(command awsop "$@" 2>&1)
+  # stdout のみをキャプチャ（stderr はそのままターミナルに表示）
+  output=$(command awsop "$@")
   local exit_code=$?
 
   if [[ $exit_code -eq 0 ]]; then
     # export コマンドを eval
     eval "$output"
-  else
-    # エラーメッセージを表示
-    echo "$output" >&2
-    return $exit_code
   fi
+  return $exit_code
 }
 
 # zsh 補完（正規表現による部分一致）
