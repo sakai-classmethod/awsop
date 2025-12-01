@@ -1,6 +1,8 @@
 """認証情報の取得と管理"""
 
 import logging
+import subprocess
+import json
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
@@ -134,6 +136,17 @@ class CredentialsManager:
             logger.info("認証情報の取得に成功しました")
             return credentials
 
+        except subprocess.CalledProcessError as e:
+            logger.error(f"1Password CLIの実行に失敗しました: {str(e)}")
+            raise RuntimeError("1Password での認証に失敗しました") from e
+        except json.JSONDecodeError as e:
+            logger.error(f"1Password CLIの出力解析に失敗しました: {str(e)}")
+            raise RuntimeError("1Password の出力を解析できませんでした") from e
+        except KeyError as e:
+            logger.error(
+                f"AssumeRoleのレスポンスに必要なフィールドがありません: {str(e)}"
+            )
+            raise RuntimeError("ロールの引き受けに失敗しました") from e
         except Exception as e:
             logger.error(f"認証情報の取得に失敗しました: {str(e)}")
             raise RuntimeError(f"認証情報の取得に失敗しました: {str(e)}") from e

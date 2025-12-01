@@ -5,13 +5,14 @@ from datetime import datetime, timedelta
 
 
 # 基本的なストラテジー
+# ハイフンで始まるプロファイル名はCLIオプションと解釈されるため除外
 profile_names = st.text(
     alphabet=st.characters(
         whitelist_categories=("Lu", "Ll", "Nd"), whitelist_characters="-_"
     ),
     min_size=1,
     max_size=50,
-)
+).filter(lambda x: not x.startswith("-"))
 
 role_arns = st.builds(
     lambda account, role: f"arn:aws:iam::{account}:role/{role}",

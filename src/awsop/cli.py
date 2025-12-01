@@ -122,9 +122,20 @@ def main(
         from awsop.app.credentials_manager import CredentialsManager
         from awsop.ui.console import ConsoleUI
         from awsop.services.credentials_writer import CredentialsWriter
+        from awsop.services.onepassword import OnePasswordClient
         from datetime import datetime
 
         ui = ConsoleUI()
+
+        # 1Password CLIの利用可能性をチェック（要件6.1, 6.2）
+        # ただし、--mfa-tokenが指定されている場合はスキップ
+        if not mfa_token:
+            op_client = OnePasswordClient()
+            if not op_client.check_availability():
+                ui.error(
+                    "1Password CLIが利用できません。opコマンドをインストールしてください。"
+                )
+                sys.exit(1)
 
         try:
             # ロール期間のバリデーション（要件4.4.3）
@@ -238,14 +249,16 @@ def main(
                     f"[{effective_profile}] Credentials will expire {expiration_str}"
                 )
 
-        except FileNotFoundError:
-            ui.error("AWS設定ファイルが見つかりません")
+        except FileNotFoundError as e:
+            # 要件11.3: AWS設定ファイルの読み取りが失敗
+            ui.error("AWS設定ファイルの読み取りに失敗しました")
             if debug:
                 import traceback
 
                 traceback.print_exc()
             sys.exit(1)
-        except KeyError:
+        except KeyError as e:
+            # プロファイルが見つからない場合
             ui.error(f"プロファイル '{profile or source_profile}' が見つかりません")
             if debug:
                 import traceback
@@ -253,6 +266,16 @@ def main(
                 traceback.print_exc()
             sys.exit(1)
         except RuntimeError as e:
+            # 要件11.1, 11.2: 1Password認証失敗、AssumeRole失敗など
+            error_message = str(e)
+            ui.error(error_message)
+            if debug:
+                import traceback
+
+                traceback.print_exc()
+            sys.exit(1)
+        except ValueError as e:
+            # バリデーションエラー（出力プロファイル保護など）
             ui.error(str(e))
             if debug:
                 import traceback
@@ -260,6 +283,7 @@ def main(
                 traceback.print_exc()
             sys.exit(1)
         except Exception as e:
+            # その他の予期しないエラー
             ui.error(f"予期しないエラーが発生しました: {str(e)}")
             if debug:
                 import traceback
