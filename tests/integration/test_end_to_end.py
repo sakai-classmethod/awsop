@@ -73,8 +73,8 @@ source_profile = default
             # 終了コードが0であることを確認
             assert result.exit_code == 0
 
-            # 標準出力にexportコマンドが含まれることを確認
-            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stdout
+            # --show-commandsオプション付きの場合は標準エラー出力にexportコマンドが含まれることを確認
+            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stderr
 
             # 認証情報ファイルに書き込まれたことを確認
             credentials_content = credentials_file.read_text()
@@ -140,11 +140,11 @@ region = us-west-2
             # 終了コードが0であることを確認
             assert result.exit_code == 0
 
-            # 標準出力にexportコマンドが含まれることを確認
-            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stdout
+            # --show-commandsオプション付きの場合は標準エラー出力にexportコマンドが含まれることを確認
+            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stderr
             # リージョンが上書きされていることを確認
-            assert "export AWS_REGION=ap-northeast-1" in result.stdout
-            assert "export AWS_DEFAULT_REGION=ap-northeast-1" in result.stdout
+            assert "export AWS_REGION=ap-northeast-1" in result.stderr
+            assert "export AWS_DEFAULT_REGION=ap-northeast-1" in result.stderr
 
 
 def test_workflow_with_role_arn_and_source_profile():
@@ -198,8 +198,8 @@ region = us-west-2
             # 終了コードが0であることを確認
             assert result.exit_code == 0
 
-            # 標準出力にexportコマンドが含まれることを確認
-            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stdout
+            # --show-commandsオプション付きの場合は標準エラー出力にexportコマンドが含まれることを確認
+            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stderr
 
 
 def test_workflow_unset_commands():
@@ -449,8 +449,9 @@ region = ap-northeast-1
             )
 
             assert result1.exit_code == 0
-            assert "AKIAIOSFODNN7EXAMPLE1" in result1.stdout
-            assert "us-west-2" in result1.stdout
+            # --show-commandsオプション付きの場合は標準エラー出力に出力される
+            assert "AKIAIOSFODNN7EXAMPLE1" in result1.stderr
+            assert "us-west-2" in result1.stderr
 
             # 2番目のプロファイルに切り替え
             mock_op_client.run_aws_command.return_value = mock_response2
@@ -467,8 +468,8 @@ region = ap-northeast-1
 
             assert result2.exit_code == 0
             # 新しい認証情報が出力されることを確認
-            assert "AKIAIOSFODNN7EXAMPLE2" in result2.stdout
+            assert "AKIAIOSFODNN7EXAMPLE2" in result2.stderr
             # 新しいリージョンが出力されることを確認
-            assert "ap-northeast-1" in result2.stdout
+            assert "ap-northeast-1" in result2.stderr
             # 古い認証情報は含まれない
-            assert "AKIAIOSFODNN7EXAMPLE1" not in result2.stdout
+            assert "AKIAIOSFODNN7EXAMPLE1" not in result2.stderr
