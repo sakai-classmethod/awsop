@@ -66,10 +66,19 @@ def main(
         None, "--external-id", "-e", help="External ID for AssumeRole"
     ),
     config_file: Optional[str] = typer.Option(
-        None, "--config-file", "-c", help="AWS config file path"
+        None, "--config-file", help="AWS config file path"
     ),
     credentials_file: Optional[str] = typer.Option(
         None, "--credentials-file", help="AWS credentials file path"
+    ),
+    console: bool = typer.Option(
+        False, "--console", "-c", help="Open AWS console in browser"
+    ),
+    console_service: Optional[str] = typer.Option(
+        None, "--console-service", help="AWS service to open (e.g., s3, lambda)"
+    ),
+    console_link: bool = typer.Option(
+        False, "--console-link", help="Print console URL without opening browser"
     ),
     info: bool = typer.Option(False, "--info", "-i", help="Show INFO level logs"),
     debug: bool = typer.Option(False, "--debug", help="Show DEBUG level logs"),
@@ -83,6 +92,14 @@ def main(
     if version:
         print(f"awsop {__version__}")
         return
+
+    # --console と --console-link は排他的
+    if console and console_link:
+        print(
+            "エラー: --console と --console-link は同時に使用できません",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     # --init-shell オプションの処理
     if init_shell:
@@ -118,14 +135,21 @@ def main(
         return
 
     # 引数なしで実行された場合はヘルプを表示
-    # ただし、--role-arnが指定されている場合は処理を続行
-    if profile is None and not show_commands and not role_arn:
+    # ただし、--role-arnまたはコンソールオプションが指定されている場合は処理を続行
+    if (
+        profile is None
+        and not show_commands
+        and not role_arn
+        and not console
+        and not console_service
+        and not console_link
+    ):
         print("使用方法: awsop [OPTIONS] [PROFILE]", file=sys.stderr)
         print("詳細は --help オプションを参照してください", file=sys.stderr)
         sys.exit(0)
 
     # プロファイル切り替え処理（タスク13, 15）
-    if profile or role_arn:
+    if profile or role_arn or console or console_service or console_link:
         from awsop.app.credentials_manager import CredentialsManager
         from awsop.ui.console import ConsoleUI
         from awsop.services.credentials_writer import CredentialsWriter
@@ -239,6 +263,48 @@ def main(
                     # プロファイルが保護されている場合（要件4.6.2）
                     ui.error(str(e))
                     sys.exit(1)
+
+            # コンソール起動処理（要件1.1, 1.5, 3.1, 3.2, 8.1, 8.2, 8.3）
+            if console or console_service or console_link:
+                from awsop.app.console_manager import ConsoleManager
+
+                console_manager = ConsoleManager()
+
+                # サービス名の決定
+                service_name = console_service if console_service else "console"
+
+                try:
+                    # スピナーを表示しながらコンソールURLを生成（要件8.1）
+                    with ui.spinner("コンソールURLを生成中..."):
+                        console_url = console_manager.open_console(
+                            credentials=credentials,
+                            service=service_name,
+                            open_browser=not console_link,  # --console-linkの場合はブラウザを開かない
+                        )
+
+                    # --console-linkオプションの場合はURLのみを標準出力に出力（要件3.1, 3.3, 3.4）
+                    if console_link:
+                        # 情報メッセージは標準エラー出力に出力（要件3.3）
+                        ui.info("コンソールURLを生成しました")
+                        # URLは標準出力に改行なしで出力（要件3.4）
+                        print(console_url, end="")
+                    else:
+                        # --consoleオプションの場合はブラウザを開いて成功メッセージを表示（要件1.5, 8.2）
+                        ui.success(
+                            f"AWSコンソールをブラウザで開きました: {service_name}"
+                        )
+
+                except RuntimeError as e:
+                    # コンソール起動エラー（要件5.2, 5.3）
+                    ui.error(str(e))
+                    if debug:
+                        import traceback
+
+                        traceback.print_exc()
+                    sys.exit(1)
+
+                # コンソール起動の場合はexportコマンドを出力しない
+                return
 
             # exportコマンドを生成
             export_commands = credentials_manager.format_export_commands(credentials)
