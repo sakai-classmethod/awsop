@@ -73,3 +73,59 @@ session_tokens = st.text(
 expirations = st.datetimes(
     min_value=datetime.now(), max_value=datetime.now() + timedelta(hours=12)
 )
+
+# コンソールサービス用のストラテジー
+# すべてのAWSリージョン（標準、GovCloud、中国）
+all_regions = st.sampled_from(
+    [
+        # 標準リージョン
+        "us-east-1",
+        "us-west-2",
+        "eu-west-1",
+        "ap-northeast-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        # GovCloudリージョン
+        "us-gov-east-1",
+        "us-gov-west-1",
+        # 中国リージョン
+        "cn-north-1",
+        "cn-northwest-1",
+    ]
+)
+
+# サービス名（短縮形と完全名）
+service_names = st.sampled_from(
+    [
+        "console",
+        "s3",
+        "lambda",
+        "ec2",
+        "api",
+        "l",
+        "ddb",
+        "logs",
+        "r53",
+    ]
+)
+
+# 完全なURL
+full_urls = st.builds(
+    lambda service: f"https://{service}.aws.amazon.com",
+    service=st.text(
+        alphabet=st.characters(
+            whitelist_categories=("Ll", "Nd"), whitelist_characters="-"
+        ),
+        min_size=3,
+        max_size=20,
+    ),
+)
+
+# サインイントークン
+signin_tokens = st.text(
+    alphabet=st.characters(
+        whitelist_categories=("Lu", "Ll", "Nd"), whitelist_characters="-_"
+    ),
+    min_size=50,
+    max_size=200,
+)

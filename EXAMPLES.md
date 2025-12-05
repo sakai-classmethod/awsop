@@ -6,6 +6,7 @@
 
 - [基本的な使い方](#基本的な使い方)
 - [プロファイル管理](#プロファイル管理)
+- [AWS コンソールの起動](#aws-コンソールの起動)
 - [リージョンとセッション設定](#リージョンとセッション設定)
 - [高度な使用例](#高度な使用例)
 - [マルチアカウント運用](#マルチアカウント運用)
@@ -79,6 +80,122 @@ awsop production --show-commands
 # export AWS_PROFILE=production
 # export AWSOP_PROFILE=production
 # export AWSOP_EXPIRATION=2025-12-01T15:30:00+09:00
+```
+
+## AWS コンソールの起動
+
+### 基本的なコンソール起動
+
+```bash
+# コンソールホームを開く
+awsop production -c
+
+# 成功すると以下のような出力が表示されます
+# ✓ AWS コンソールをブラウザで開きました
+```
+
+### 特定のサービスを開く
+
+```bash
+# S3 コンソールを開く
+awsop production -c s3
+
+# Lambda コンソールを開く
+awsop production -c lambda
+
+# CloudWatch Logs を開く
+awsop production -c logs
+
+# EC2 コンソールを開く
+awsop production -c ec2
+```
+
+### サービスの短縮名を使用
+
+```bash
+# よく使うサービスの短縮名
+awsop production -c ddb      # DynamoDB
+awsop production -c l         # Lambda
+awsop production -c cfn       # CloudFormation
+awsop production -c cw        # CloudWatch
+awsop production -c r53       # Route 53
+awsop production -c ssm       # Systems Manager
+awsop production -c secret    # Secrets Manager
+```
+
+#### サポートされている短縮名の一覧
+
+| 短縮名   | サービス名        | 説明                          |
+| -------- | ----------------- | ----------------------------- |
+| `api`    | API Gateway       | API Gateway コンソール        |
+| `c9`     | Cloud9            | Cloud9 IDE                    |
+| `cfn`    | CloudFormation    | CloudFormation スタック       |
+| `cw`     | CloudWatch        | CloudWatch メトリクス         |
+| `ddb`    | DynamoDB          | DynamoDB テーブル             |
+| `eb`     | Elastic Beanstalk | Elastic Beanstalk 環境        |
+| `ec`     | ElastiCache       | ElastiCache クラスター        |
+| `es`     | Elasticsearch     | Elasticsearch ドメイン        |
+| `gd`     | GuardDuty         | GuardDuty セキュリティ        |
+| `k8s`    | EKS               | Kubernetes クラスター         |
+| `l`      | Lambda            | Lambda 関数                   |
+| `logs`   | CloudWatch Logs   | CloudWatch Logs ログ グループ |
+| `r53`    | Route 53          | Route 53 ホストゾーン         |
+| `secret` | Secrets Manager   | Secrets Manager シークレット  |
+| `sfn`    | Step Functions    | Step Functions ステートマシン |
+| `ssm`    | Systems Manager   | Systems Manager パラメータ    |
+
+完全なサービス名（例: `s3`, `ec2`, `lambda`）も使用できます。
+
+### コンソール URL のみを取得
+
+```bash
+# URL のみを標準出力に出力（ブラウザを開かない）
+awsop production --console-link
+
+# 特定のサービスの URL を取得
+awsop production --console-link --console-service s3
+
+# URL をクリップボードにコピー（macOS）
+awsop production --console-link | pbcopy
+
+# URL をファイルに保存
+awsop production --console-link > console-url.txt
+```
+
+### リージョンを指定してコンソールを開く
+
+```bash
+# 東京リージョンの S3 コンソールを開く
+awsop production -c s3 --region ap-northeast-1
+
+# 米国西部リージョンの Lambda コンソールを開く
+awsop production -c lambda --region us-west-2
+
+# 欧州リージョンのコンソールホームを開く
+awsop production -c --region eu-west-1
+```
+
+### 完全な URL を指定
+
+```bash
+# 完全な URL を指定してコンソールを開く
+awsop production -c "https://console.aws.amazon.com/cloudwatch/home?region=ap-northeast-1#logsV2:log-groups"
+
+# QuickSight など、特殊な URL を持つサービス
+awsop production -c "https://quicksight.aws.amazon.com"
+```
+
+### コンソール起動とオプションの組み合わせ
+
+```bash
+# ロールを引き受けてコンソールを開く
+awsop production -c --role-arn arn:aws:iam::123456789012:role/MyRole
+
+# セッション名を指定してコンソールを開く
+awsop production -c --session-name "console-access-$(date +%Y%m%d)"
+
+# デバッグログを有効にしてコンソールを開く
+awsop production -c s3 --debug
 ```
 
 ## リージョンとセッション設定
@@ -288,7 +405,49 @@ awsop production
 awsop production --role-duration 7200
 ```
 
+### コンソールが開かない
+
+```bash
+# ブラウザ起動に失敗した場合、URL が表示されます
+# 表示された URL を手動でブラウザにコピーしてください
+
+# URL のみを取得して手動で開く
+awsop production --console-link
+
+# デバッグログで詳細を確認
+awsop production -c --debug
+```
+
+### GovCloud や中国リージョンでコンソールを開く
+
+```bash
+# GovCloud リージョン
+awsop govcloud-profile -c --region us-gov-west-1
+
+# 中国リージョン
+awsop china-profile -c --region cn-north-1
+
+# 適切なドメイン（amazonaws-us-gov.com、amazonaws.cn）が自動的に使用されます
+```
+
 ## ワークフロー例
+
+### コンソールアクセスワークフロー
+
+```bash
+#!/bin/bash
+# open-console.sh
+
+# 本番環境のコンソールを開く
+awsop production -c
+
+# 特定のサービスを開く
+awsop production -c s3
+
+# URL を取得してチームメンバーと共有
+URL=$(awsop production --console-link --console-service cloudformation)
+echo "CloudFormation コンソール: $URL"
+```
 
 ### デプロイワークフロー
 
@@ -305,6 +464,9 @@ aws cloudformation deploy \
   --template-file template.yaml \
   --stack-name my-stack \
   --capabilities CAPABILITY_IAM
+
+# デプロイ後、CloudFormation コンソールを開く
+awsop production -c cloudformation
 
 # 完了後、認証情報をクリア
 eval "$(awsop --unset)"
@@ -350,7 +512,29 @@ done
 
 ## ベストプラクティス
 
-### 1. セッション名を意味のあるものにする
+### 1. コンソールアクセスには適切なサービス名を指定
+
+```bash
+# 悪い例：コンソールホームから手動でサービスを探す
+awsop production -c
+
+# 良い例：直接サービスを開く
+awsop production -c s3
+awsop production -c lambda
+awsop production -c logs
+```
+
+### 2. URL 共有には --console-link を使用
+
+```bash
+# チームメンバーと URL を共有する場合
+awsop production --console-link --console-service cloudformation
+
+# Slack や Email で共有
+echo "CloudFormation スタック: $(awsop production --console-link --console-service cloudformation)"
+```
+
+### 3. セッション名を意味のあるものにする
 
 ```bash
 # 悪い例
@@ -361,7 +545,7 @@ awsop production --session-name "deploy-api-v2.1.0"
 awsop production --session-name "debug-issue-123"
 ```
 
-### 2. 長時間の作業には適切なロール期間を設定
+### 4. 長時間の作業には適切なロール期間を設定
 
 ```bash
 # 短時間の作業（デフォルト1時間）
@@ -374,7 +558,7 @@ awsop production --role-duration 7200
 awsop production --role-duration 43200
 ```
 
-### 3. 作業終了後は認証情報をクリア
+### 5. 作業終了後は認証情報をクリア
 
 ```bash
 # 作業開始
@@ -387,7 +571,7 @@ aws s3 sync ./dist s3://my-bucket/
 awsop --unset
 ```
 
-### 4. デバッグ時は詳細ログを有効にする
+### 6. デバッグ時は詳細ログを有効にする
 
 ```bash
 # 問題が発生した場合
@@ -397,7 +581,7 @@ awsop production --debug 2>&1 | tee awsop-debug.log
 cat awsop-debug.log
 ```
 
-### 5. スクリプトではエラーハンドリングを実装
+### 7. スクリプトではエラーハンドリングを実装
 
 ```bash
 #!/bin/bash
