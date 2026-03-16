@@ -88,7 +88,7 @@ source_profile = default
             assert "export AWS_SESSION_TOKEN=FwoGZXIvYXdzEBYaDH..." in result.stderr
             assert "export AWS_REGION=us-west-2" in result.stderr
             assert "export AWS_DEFAULT_REGION=us-west-2" in result.stderr
-            assert "export AWS_PROFILE=test-profile" in result.stderr
+            assert "export AWS_PROFILE" not in result.stderr
             assert "export AWSOP_PROFILE=test-profile" in result.stderr
             assert "export AWSOP_EXPIRATION=" in result.stderr
 

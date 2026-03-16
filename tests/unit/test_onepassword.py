@@ -51,31 +51,45 @@ class TestOnePasswordClient:
         mock_result = MagicMock()
         mock_result.stdout = json.dumps(expected_output)
 
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = mock_result
+        # AWS_PROFILE を含む環境変数をモック
+        fake_environ = {
+            "HOME": "/home/test",
+            "AWS_ACCESS_KEY_ID": "old-key",
+            "AWS_SECRET_ACCESS_KEY": "old-secret",
+            "AWS_SESSION_TOKEN": "old-token",
+            "AWS_PROFILE": "my-profile",
+        }
 
-            result = client.run_aws_command(
-                [
-                    "sts",
-                    "assume-role",
-                    "--role-arn",
-                    "arn:aws:iam::123456789012:role/test",
-                ]
-            )
+        with patch("os.environ.copy", return_value=fake_environ.copy()):
+            with patch("subprocess.run") as mock_run:
+                mock_run.return_value = mock_result
 
-            assert result == expected_output
-            # envパラメータが渡されることを確認
-            assert mock_run.call_count == 1
-            call_args = mock_run.call_args
-            assert call_args[1]["capture_output"] is True
-            assert call_args[1]["text"] is True
-            assert call_args[1]["check"] is True
-            assert "env" in call_args[1]
-            # AWS関連の環境変数がクリアされていることを確認
-            env = call_args[1]["env"]
-            assert "AWS_ACCESS_KEY_ID" not in env
-            assert "AWS_SECRET_ACCESS_KEY" not in env
-            assert "AWS_SESSION_TOKEN" not in env
+                result = client.run_aws_command(
+                    [
+                        "sts",
+                        "assume-role",
+                        "--role-arn",
+                        "arn:aws:iam::123456789012:role/test",
+                    ]
+                )
+
+                assert result == expected_output
+                # envパラメータが渡されることを確認
+                assert mock_run.call_count == 1
+                call_args = mock_run.call_args
+                assert call_args[1]["capture_output"] is True
+                assert call_args[1]["text"] is True
+                assert call_args[1]["check"] is True
+                assert "env" in call_args[1]
+                # AWS関連の環境変数がクリアされていることを確認
+                env = call_args[1]["env"]
+                assert "AWS_ACCESS_KEY_ID" not in env
+                assert "AWS_SECRET_ACCESS_KEY" not in env
+                assert "AWS_SESSION_TOKEN" not in env
+                # AWS_PROFILE が環境に保持されていることを確認（要件 3.1, 3.2）
+                assert "AWS_PROFILE" in env, \
+                    "AWS_PROFILE が環境から除去されています（保持されるべきです）"
+                assert env["AWS_PROFILE"] == "my-profile"
 
     def test_run_aws_command_failure(self):
         """op plugin runが失敗した場合、CalledProcessErrorを発生させる"""

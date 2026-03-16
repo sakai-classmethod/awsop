@@ -223,7 +223,7 @@ def test_workflow_unset_commands():
     assert "unset AWS_SESSION_TOKEN" in result.stdout
     assert "unset AWS_REGION" in result.stdout
     assert "unset AWS_DEFAULT_REGION" in result.stdout
-    assert "unset AWS_PROFILE" in result.stdout
+    assert "unset AWS_PROFILE" not in result.stdout
     assert "unset AWSOP_PROFILE" in result.stdout
     assert "unset AWSOP_EXPIRATION" in result.stdout
 
