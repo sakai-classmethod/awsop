@@ -167,14 +167,14 @@ class CredentialsManager:
         else:
             expiration_str = str(credentials.expiration)
 
-        # export コマンドを生成（要件1.4, 2.2, 4.1, 4.2）
+        # export コマンドを生成（要件1.1, 1.2, 1.3）
+        # AWS_PROFILE は awsop が管理しないため除外
         commands = [
             f"export AWS_ACCESS_KEY_ID={credentials.access_key_id}",
             f"export AWS_SECRET_ACCESS_KEY={credentials.secret_access_key}",
             f"export AWS_SESSION_TOKEN={credentials.session_token}",
             f"export AWS_REGION={credentials.region}",
             f"export AWS_DEFAULT_REGION={credentials.region}",
-            f"export AWS_PROFILE={credentials.profile}",
             f"export AWSOP_PROFILE={credentials.profile}",
             f"export AWSOP_EXPIRATION={expiration_str}",
         ]
@@ -188,14 +188,14 @@ class CredentialsManager:
         Returns:
             str: unset コマンド形式の文字列
         """
-        # unset コマンドを生成（要件4.1.2）
+        # unset コマンドを生成（要件2.1, 2.2）
+        # AWS_PROFILE は awsop が管理しないため除外
         commands = [
             "unset AWS_ACCESS_KEY_ID",
             "unset AWS_SECRET_ACCESS_KEY",
             "unset AWS_SESSION_TOKEN",
             "unset AWS_REGION",
             "unset AWS_DEFAULT_REGION",
-            "unset AWS_PROFILE",
             "unset AWSOP_PROFILE",
             "unset AWSOP_EXPIRATION",
         ]

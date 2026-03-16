@@ -37,7 +37,6 @@ class OnePasswordClient:
             "AWS_ACCESS_KEY_ID",
             "AWS_SECRET_ACCESS_KEY",
             "AWS_SESSION_TOKEN",
-            "AWS_PROFILE",
             "AWS_DEFAULT_REGION",
             "AWS_REGION",
             "AWSOP_PROFILE",
