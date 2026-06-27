@@ -56,23 +56,16 @@ op signin
 
 ### インストール
 
-ソースからビルドしてインストールします:
+Homebrew（macOS / Linux）:
 
 ```bash
-git clone https://github.com/sakai-classmethod/awsop.git
-cd awsop
-
-# $GOPATH/bin にインストール
-go install ./cmd/awsop/
-
-# または、ローカルにビルド
-go build -o awsop ./cmd/awsop/
+brew install sakai-classmethod/tap/awsop
 ```
 
-バージョン情報を埋め込む場合:
+ソースからビルドする場合（Go 1.24 以上が必要）:
 
 ```bash
-go install -ldflags "-X github.com/sakai-classmethod/awsop/internal/cli.Version=1.0.0" ./cmd/awsop/
+go install github.com/sakai-classmethod/awsop/cmd/awsop@latest
 ```
 
 ### 設定
