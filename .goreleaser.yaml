@@ -1,0 +1,28 @@
+version: 2
+
+builds:
+  - main: ./cmd/awsop/
+    binary: awsop
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/sakai-classmethod/awsop/internal/cli.Version={{.Version}}
+
+archives:
+  - formats:
+      - tar.gz
+
+homebrew_casks:
+  - repository:
+      owner: sakai-classmethod
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: https://github.com/sakai-classmethod/awsop
+    description: CLI tool for managing AWS credentials via 1Password integration
+    license: MIT
