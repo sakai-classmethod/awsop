@@ -1,432 +1,213 @@
 # awsop
 
-[![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Go](https://img.shields.io/badge/Go-1.24+-00ADD8.svg)](https://go.dev/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ## 目次
 
-- [awsop](#awsop)
-  - [目次](#目次)
-  - [プロジェクトの説明](#プロジェクトの説明)
-    - [主な特徴](#主な特徴)
-  - [対象ユーザー](#対象ユーザー)
-  - [前提条件](#前提条件)
-    - [1Password CLI のインストール](#1password-cli-のインストール)
-    - [uv のインストール](#uv-のインストール)
+- [プロジェクト概要](#プロジェクト概要)
+- [対象ユーザー](#対象ユーザー)
+- [前提条件](#前提条件)
+- [使い方](#使い方)
   - [インストール](#インストール)
-    - [awsop のインストール](#awsop-のインストール)
-  - [使用方法](#使用方法)
-    - [シェル統合のセットアップ](#シェル統合のセットアップ)
-    - [awsop の実行](#awsop-の実行)
-    - [シェル補完機能](#シェル補完機能)
-      - [オプション補完](#オプション補完)
-      - [プロファイル補完](#プロファイル補完)
-      - [文脈認識補完](#文脈認識補完)
-    - [高度な使用方法](#高度な使用方法)
-      - [リージョンを指定](#リージョンを指定)
-      - [ロール期間を指定](#ロール期間を指定)
-      - [認証情報をファイルに書き込む](#認証情報をファイルに書き込む)
-      - [直接ロール ARN を指定](#直接ロール-arn-を指定)
-    - [利用可能なオプション](#利用可能なオプション)
-    - [トラブルシューティング](#トラブルシューティング)
-  - [貢献ガイドライン](#貢献ガイドライン)
-  - [追加ドキュメント](#追加ドキュメント)
-  - [サポート](#サポート)
-  - [ライセンス](#ライセンス)
+  - [設定](#設定)
+  - [実行](#実行)
+  - [コンソール起動](#コンソール起動)
+  - [高度な使用方法](#高度な使用方法)
+  - [利用可能なオプション](#利用可能なオプション)
+- [関連ドキュメント](#関連ドキュメント)
 
-## プロジェクトの説明
+## プロジェクト概要
 
-awsop を使うと、1Password に保存された AWS 認証情報を使って、安全かつ簡単に AWS アカウント間を切り替えられます。
+`awsop` を使うと、1Password に保存された AWS 認証情報を使って、安全かつ簡単に AWS アカウント間を切り替えられます。
 
-従来の AWS 認証情報管理ツールとは異なり、awsop は長期認証情報を平文ファイルに保存しません。代わりに、1Password CLI と Touch ID を使用して、必要な時にだけ一時認証情報を取得します。これにより、セキュリティポリシーを遵守しながら、快適な開発体験を実現できます。
+従来の AWS 認証情報管理ツールとは異なり、`awsop` は長期認証情報を平文ファイルに保存しません。代わりに 1Password CLI と Touch ID を使用して、必要な時にだけ一時認証情報を取得します。シェル統合により、`awsop production` と入力するだけで本番環境の認証情報が環境変数に設定されます。
 
-シェル統合により、`eval "$(awsop production)"` と入力するだけで、本番環境の認証情報が環境変数に設定されます。Rich UI が視覚的なフィードバックを提供するため、現在どのアカウントで作業しているかを常に把握できます。
+主な特徴:
 
-![awsop demo](docs/images/demo.gif)
-
-### 主な特徴
-
-- **セキュアな認証**: 1Password と Touch ID による MFA 認証で、長期認証情報を平文で保存しない
-- **シンプルな操作**: `eval "$(awsop profile-name)"` だけで認証情報を設定
-- **コンソール統合**: `-c` オプションで AWS マネジメントコンソールをブラウザで直接開く
-- **視覚的なフィードバック**: Rich UI によるスピナーと色付きメッセージで状態を明確に表示
-- **柔軟な設定**: リージョン、セッション名、ロール期間など、豊富なオプションで様々なシナリオに対応
-- **プロファイル管理**: `~/.aws/config` からプロファイルを読み取り、複数アカウントを簡単に管理
-- **デバッグサポート**: 詳細なログ出力で問題を素早く特定
+- 1Password と Touch ID によるセキュアな認証（長期認証情報を平文で保存しない）
+- `awsop profile-name` だけで認証情報を設定
+- `-c` オプションで AWS マネジメントコンソールをブラウザで直接起動
+- 有効な認証情報のキャッシュ再利用（不要な Touch ID 認証を回避）
+- 豊富なオプション（リージョン、セッション名、ロール期間など）
+- zsh 補完（プロファイル名、オプション、サービス名の補完）
 
 ## 対象ユーザー
 
-このプロジェクトは、以下のような方を対象としています：
-
-- **AWS を日常的に使用する開発者**: 複数の AWS アカウント間を頻繁に切り替える必要がある方
-- **セキュリティを重視する組織**: 長期認証情報の平文保存を禁止しているチーム
-- **1Password を使用している方**: すでに 1Password で認証情報を管理している方
-- **ジャンプアカウント運用をしている方**: MFA 必須の環境で AssumeRole を使用している方
-
-awsop は、セキュリティポリシーを遵守しながら、快適な AWS 開発体験を実現したい方に最適です
+このプロジェクトは、複数の AWS アカウント間を頻繁に切り替える開発者で、1Password を使用して認証情報を管理している方を対象としています。特に、長期認証情報の平文保存を禁止しているセキュリティポリシー環境や、MFA 必須のジャンプアカウント運用をしている方に最適です。
 
 ## 前提条件
 
-awsop を使用する前に、以下を準備してください：
+`awsop` を使用するには、以下が必要です:
 
-- **Python 3.11 以上**: Python がインストールされていることを確認してください
-- **uv パッケージマネージャー**: Python パッケージの管理に使用します（[インストール方法](https://github.com/astral-sh/uv)）
-- **1Password CLI**: `op` コマンドがインストールされている必要があります（[インストール方法](https://developer.1password.com/docs/cli/)）
-- **AWS 設定ファイル**: `~/.aws/config` にプロファイル設定が必要です
-- **1Password アカウント**: AWS 認証情報が 1Password に保存されている必要があります
+- Go 1.24 以上（ビルドする場合）
+- [1Password CLI](https://developer.1password.com/docs/cli/)（`op` コマンド）がインストールされ、サインイン済みであること
+- `~/.aws/config` に `role_arn` を含むプロファイルが定義されていること
+- AWS 認証情報が 1Password に保存されていること
 
-### 1Password CLI のインストール
+1Password CLI のインストール（macOS）:
 
 ```bash
-# macOS (Homebrew)
 brew install 1password-cli
-
-# インストール後、1Password にサインイン
 op signin
 ```
 
-### uv のインストール
+## 使い方
+
+### インストール
+
+ソースからビルドしてインストールします:
 
 ```bash
-# macOS/Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# または Homebrew
-brew install uv
-```
-
-## インストール
-
-### awsop のインストール
-
-awsop をインストールするには、以下のコマンドを実行します：
-
-```bash
-# GitHub から直接インストール（推奨）
-uv tool install git+https://github.com/sakai-classmethod/awsop.git
-```
-
-開発版をインストールする場合：
-
-```bash
-# リポジトリをクローン
 git clone https://github.com/sakai-classmethod/awsop.git
 cd awsop
 
-# 開発モードでインストール
-uv tool install -e .
+# $GOPATH/bin にインストール
+go install ./cmd/awsop/
+
+# または、ローカルにビルド
+go build -o awsop ./cmd/awsop/
 ```
 
-## 使用方法
-
-awsop を使い始めるには、まずシェル統合をセットアップします。
-
-### シェル統合のセットアップ
-
-1. **シェルラッパー関数を追加**
-
-   ```bash
-   echo 'eval "$(awsop --init-shell)"' >> ~/.zshrc && source ~/.zshrc
-   ```
-
-   これで、`awsop` コマンドが環境変数を直接設定できるようになります。
-
-2. **シェル補完機能の更新**
-
-   awsop を更新した後、新しい補完機能を有効にするには、ターミナルを再起動してください。
-
-### awsop の実行
-
-1. **利用可能なプロファイルを確認**
-
-   ```bash
-   awsop --list-profiles
-   ```
-
-   `~/.aws/config` に定義されているすべてのプロファイルが表示されます。
-
-2. **プロファイルを指定して認証情報を取得**
-
-   ```bash
-   awsop production
-   ```
-
-   1Password で Touch ID 認証が求められます。認証が成功すると、以下の環境変数が設定されます：
-
-   - `AWS_ACCESS_KEY_ID`
-   - `AWS_SECRET_ACCESS_KEY`
-   - `AWS_SESSION_TOKEN`
-   - `AWS_REGION`
-   - `AWS_PROFILE`
-   - `AWSOP_EXPIRATION`
-
-   同じプロファイルの認証情報がまだ有効な場合、次回以降の `awsop production` は
-   既存の環境変数を再利用し、1Password CLI を呼び出しません。強制的に再取得する場合は
-   `awsop production --force-refresh` を実行してください。
-
-3. **認証情報を確認**
-
-   ```bash
-   echo $AWS_PROFILE
-   # => production
-
-   aws sts get-caller-identity
-   ```
-
-4. **認証情報をクリア**
-
-   作業が終わったら、認証情報をクリアします：
-
-   ```bash
-   awsop --unset
-   ```
-
-5. **AWS コンソールをブラウザで開く**
-
-   認証情報を使って AWS マネジメントコンソールを開きます：
-
-   ```bash
-   # コンソールホームを開く
-   awsop production -c
-
-   # 特定のサービスを開く
-   awsop production --console-service s3
-   awsop production --console-service lambda
-
-   # URL のみを取得（ブラウザを開かない）
-   awsop production --console-link
-   ```
-
-### シェル補完機能
-
-awsop は zsh でのシェル補完をサポートしています。Tab キーを押すことで、利用可能なオプションやプロファイルを簡単に入力できます。
-
-#### オプション補完
-
-`-` で始まる入力の後に Tab キーを押すと、利用可能なすべてのコマンドラインオプションが説明付きで表示されます：
+バージョン情報を埋め込む場合:
 
 ```bash
-awsop -<Tab>
-# 表示される候補:
-# -h              -- ヘルプを表示
-# --help          -- ヘルプを表示
-# -s              -- exportコマンドを表示
-# --show-commands -- exportコマンドを表示
-# -u              -- 環境変数をクリア
-# --unset         -- 環境変数をクリア
-# ...
+go install -ldflags "-X github.com/sakai-classmethod/awsop/internal/cli.Version=1.0.0" ./cmd/awsop/
 ```
 
-部分的な入力でもフィルタリングされます：
+### 設定
+
+1. シェルラッパー関数を `.zshrc` に追加する
+
+    ```bash
+    echo 'eval "$(awsop --init-shell)"' >> ~/.zshrc
+    source ~/.zshrc
+    ```
+
+    これにより `awsop` コマンドの出力が自動的に `eval` され、環境変数が設定されます。zsh 補完も同時に有効化されます。
+
+2. `~/.aws/config` にプロファイルを定義する
+
+    ```ini
+    [profile production]
+    role_arn = arn:aws:iam::123456789012:role/MyRole
+    region = ap-northeast-1
+
+    [profile staging]
+    role_arn = arn:aws:iam::987654321098:role/MyRole
+    region = ap-northeast-1
+    ```
+
+### 実行
+
+1. 利用可能なプロファイルを確認する
+
+    ```bash
+    awsop --list-profiles
+    ```
+
+2. プロファイルを指定して認証情報を取得する
+
+    ```bash
+    awsop production
+    ```
+
+    1Password で Touch ID 認証が求められます。認証が成功すると、以下の環境変数が設定されます:
+
+    - `AWS_ACCESS_KEY_ID`
+    - `AWS_SECRET_ACCESS_KEY`
+    - `AWS_SESSION_TOKEN`
+    - `AWS_REGION` / `AWS_DEFAULT_REGION`
+    - `AWSOP_PROFILE`
+    - `AWSOP_EXPIRATION`
+
+    同じプロファイルの認証情報がまだ有効な場合（残り5分以上）、キャッシュが再利用され 1Password CLI を呼び出しません。
+
+3. 認証情報をクリアする
+
+    ```bash
+    awsop --unset
+    ```
+
+### コンソール起動
+
+認証情報を使って AWS マネジメントコンソールをブラウザで開きます:
 
 ```bash
-awsop --reg<Tab>
-# => awsop --region
+# コンソールホームを開く
+awsop production -c
+
+# 特定のサービスを開く
+awsop production --console-service s3
+awsop production --console-service lambda
+
+# URL のみを取得（ブラウザを開かない）
+awsop production --console-link
 ```
 
-#### プロファイル補完
-
-オプションなしで Tab キーを押すと、`~/.aws/config` に定義されているプロファイル名が表示されます：
-
-```bash
-awsop <Tab>
-# 表示される候補:
-# production
-# staging
-# development
-```
-
-#### 文脈認識補完
-
-補完システムは入力の文脈を理解し、適切な候補を提示します：
-
-```bash
-# プロファイル値を必要とするオプションの後では、プロファイル名を補完
-awsop --source-profile <Tab>
-# => production, staging, development
-
-# 通常の位置では、プロファイル名を補完
-awsop prod<Tab>
-# => awsop production
-```
+短縮名も使用できます（`l` → Lambda、`cfn` → CloudFormation、`ddb` → DynamoDB など）。
 
 ### 高度な使用方法
 
-#### リージョンを指定
+リージョンを指定:
 
 ```bash
-# 東京リージョン（デフォルト）
-awsop production
-
-# 米国西部リージョン
 awsop production --region us-west-2
 ```
 
-#### ロール期間を指定
+ロール期間を指定:
 
 ```bash
-# デフォルト（1時間）
-awsop production
-
-# 2時間
 awsop production --role-duration 7200
 ```
 
-#### 認証情報をファイルに書き込む
+認証情報を `~/.aws/credentials` に書き込む:
 
 ```bash
-# ~/.aws/credentials に書き込む
 awsop production --output-profile prod-temp
-
-# 他のツールから使用
-export AWS_PROFILE=prod-temp
-terraform plan
 ```
 
-#### 直接ロール ARN を指定
+直接ロール ARN を指定:
 
 ```bash
-# プロファイルを使わずにロールを引き受ける
 awsop --role-arn arn:aws:iam::123456789012:role/MyRole
 ```
 
-詳細な使用例については、[EXAMPLES.md](EXAMPLES.md) を参照してください。
+キャッシュを無視して再取得:
+
+```bash
+awsop production --force-refresh
+```
 
 ### 利用可能なオプション
 
-| オプション           | 短縮形 | 説明                                       |
-| -------------------- | ------ | ------------------------------------------ |
-| `--list-profiles`    | `-l`   | 利用可能なプロファイル一覧を表示           |
-| `--show-commands`    | `-s`   | export コマンドを表示（eval せずに確認）   |
-| `--unset`            | `-u`   | 環境変数をクリア                           |
-| `--init-shell`       | -      | シェルラッパー関数を出力                   |
-| `--console`          | `-c`   | AWS コンソールをブラウザで開く             |
-| `--console-service`  | -      | 開くサービスを指定（例: s3, lambda）       |
-| `--console-link`     | -      | コンソール URL のみを出力                  |
-| `--force-refresh`    | -      | 有効な認証情報があっても再取得             |
-| `--region`           | `-r`   | AWS リージョンを指定                       |
-| `--session-name`     | `-n`   | AssumeRole のセッション名を指定            |
-| `--role-duration`    | `-d`   | ロールの有効期間（秒）を指定               |
-| `--mfa-token`        | `-m`   | MFA トークンを指定                         |
-| `--output-profile`   | `-o`   | 認証情報を `~/.aws/credentials` に書き込む |
-| `--role-arn`         | `-a`   | 直接ロール ARN を指定                      |
-| `--source-profile`   | `-p`   | ソースプロファイルを指定                   |
-| `--external-id`      | `-e`   | 外部 ID を指定                             |
-| `--config-file`      | -      | カスタム設定ファイルを指定                 |
-| `--credentials-file` | -      | カスタム認証情報ファイルを指定             |
-| `--info`             | `-i`   | INFO レベルのログを表示                    |
-| `--debug`            | -      | DEBUG レベルのログを表示                   |
-| `--version`          | `-v`   | バージョン情報を表示                       |
-| `--help`             | `-h`   | ヘルプを表示                               |
+| オプション | 短縮形 | 説明 |
+| :--- | :--- | :--- |
+| `--list-profiles` | `-l` | 利用可能なプロファイル一覧を表示 |
+| `--show-commands` | `-s` | export コマンドを表示（eval せずに確認） |
+| `--unset` | `-u` | 環境変数をクリア |
+| `--init-shell` | - | シェルラッパー関数を出力 |
+| `--console` | `-c` | AWS コンソールをブラウザで開く |
+| `--console-service` | - | 開くサービスを指定（例: s3, lambda） |
+| `--console-link` | - | コンソール URL のみを出力 |
+| `--force-refresh` | - | 有効な認証情報があっても再取得 |
+| `--region` | `-r` | AWS リージョンを指定 |
+| `--session-name` | `-n` | AssumeRole のセッション名を指定 |
+| `--role-duration` | `-d` | ロールの有効期間（秒）を指定 |
+| `--mfa-token` | `-m` | MFA トークンを指定 |
+| `--output-profile` | `-o` | 認証情報を `~/.aws/credentials` に書き込む |
+| `--role-arn` | `-a` | 直接ロール ARN を指定 |
+| `--source-profile` | `-p` | ソースプロファイルを指定 |
+| `--external-id` | `-e` | 外部 ID を指定 |
+| `--config-file` | - | カスタム設定ファイルを指定 |
+| `--credentials-file` | - | カスタム認証情報ファイルを指定 |
+| `--info` | `-i` | INFO レベルのログを表示 |
+| `--debug` | - | DEBUG レベルのログを表示 |
+| `--version` | `-v` | バージョン情報を表示 |
+| `--help` | `-h` | ヘルプを表示 |
 
-すべてのオプションの詳細については、`awsop --help` を実行してください
+## 関連ドキュメント
 
-### トラブルシューティング
-
-よくある問題と解決方法：
-
-<table>
-  <tr>
-    <td><strong>問題</strong></td>
-    <td><strong>解決方法</strong></td>
-  </tr>
-  <tr>
-    <td>1Password CLI が見つからない</td>
-    <td>
-      <code>which op</code> でインストールを確認してください。<br>
-      インストールされていない場合: <code>brew install 1password-cli</code>
-    </td>
-  </tr>
-  <tr>
-    <td>プロファイルが見つからない</td>
-    <td>
-      <code>awsop --list-profiles</code> で利用可能なプロファイルを確認してください。<br>
-      <code>~/.aws/config</code> にプロファイルが定義されているか確認してください。
-    </td>
-  </tr>
-  <tr>
-    <td>AssumeRole が失敗する</td>
-    <td>
-      <code>awsop production --debug</code> で詳細ログを確認してください。<br>
-      <code>role_arn</code> が正しく設定されているか確認してください。<br>
-      IAM ロールの信頼ポリシーが正しいか確認してください。
-    </td>
-  </tr>
-  <tr>
-    <td>Orca.app などから毎回 macOS の権限ダイアログが出る</td>
-    <td>
-      1Password CLI のアプリ連携がホストアプリ経由で実行されるためです。<br>
-      同じプロファイルの認証情報が有効な間はキャッシュが再利用され、<br>
-      1Password CLI の呼び出しを避けます。再取得が必要な場合だけ<br>
-      <code>awsop production --force-refresh</code> を使用してください。
-    </td>
-  </tr>
-  <tr>
-    <td>認証情報の有効期限が切れた</td>
-    <td>
-      <code>echo $AWSOP_EXPIRATION</code> で有効期限を確認してください。<br>
-      <code>awsop production</code> で認証情報を再取得してください。<br>
-      長時間の作業には <code>--role-duration 7200</code> を使用してください。
-    </td>
-  </tr>
-  <tr>
-    <td>出力プロファイルが保護されている</td>
-    <td>
-      別のプロファイル名を使用するか、<code>~/.aws/credentials</code> に<br>
-      <code>manager = awsop</code> を手動で追加してください。
-    </td>
-  </tr>
-  <tr>
-    <td>Touch ID 認証が表示されない</td>
-    <td>
-      <code>op signin</code> で 1Password にサインインしているか確認してください。<br>
-      1Password アプリが起動しているか確認してください。
-    </td>
-  </tr>
-</table>
-
-その他のトラブルシューティング情報：
-
-- [よくある質問（FAQ）](docs/FAQ.md)
-- [詳細な使用例](EXAMPLES.md)
-- [開発者ガイド](CONTRIBUTING.md)
-
-## 貢献ガイドライン
-
-awsop プロジェクトへの貢献を歓迎します！貢献方法については、[CONTRIBUTING.md](CONTRIBUTING.md) をご覧ください。
-
-貢献の前に：
-
-- Issue を作成して、変更内容を議論してください
-- テストを書いてください
-- コーディング規約に従ってください
-- コミットメッセージは明確に書いてください
-
-## 追加ドキュメント
-
-詳細な情報については、以下のドキュメントを参照してください：
-
-- [詳細な使用例](EXAMPLES.md) - 様々なシナリオでの使用方法
-- [開発者ガイド](CONTRIBUTING.md) - 開発環境のセットアップとテスト方法
-- [変更履歴](CHANGELOG.md) - バージョンごとの変更内容
-- [設計書](.kiro/specs/awsop-cli-migration/design.md) - システムアーキテクチャと設計
-- [要件定義](.kiro/specs/awsop-cli-migration/requirements.md) - 機能要件
-
-## サポート
-
-問題が発生した場合や質問がある場合は、以下の方法でサポートを受けられます：
-
-- **Issue トラッカー**: [GitHub Issues](https://github.com/sakai-classmethod/awsop/issues) でバグ報告や機能リクエストを作成
-- **ディスカッション**: [GitHub Discussions](https://github.com/sakai-classmethod/awsop/discussions) で質問や議論
-- **メール**: support@example.com
-
-## ライセンス
-
-awsop は [MIT License](LICENSE) の下でライセンスされています。
-
----
-
-**バージョン**: 1.0.0
-**最終更新**: 2025-12-01
-
-> このプロジェクトは [The Good Docs Project](https://thegooddocsproject.dev/) のテンプレートを参考にしています
+- [EXAMPLES.md](EXAMPLES.md) - 様々なシナリオでの使用例
+- [CONTRIBUTING.md](CONTRIBUTING.md) - 開発環境のセットアップとテスト方法
+- [CHANGELOG.md](CHANGELOG.md) - バージョンごとの変更内容

@@ -9,85 +9,94 @@ awsop is a CLI tool for managing AWS credentials via 1Password integration. It r
 ## Development Commands
 
 ```bash
-# Install dependencies
-uv sync
+# Build
+go build -o awsop ./cmd/awsop/
 
-# Install as CLI tool in dev mode
-uv tool install -e .
+# Build with version
+go build -ldflags "-X github.com/sakai-classmethod/awsop/internal/cli.Version=1.0.0" -o awsop ./cmd/awsop/
 
 # Run tests
-uv run pytest
+go test ./internal/...
 
-# Run specific test file
-uv run pytest tests/unit/test_onepassword.py
+# Run tests with verbose output
+go test -v ./internal/...
 
-# Run specific test function
-uv run pytest tests/unit/test_onepassword.py::test_check_availability
+# Run specific test
+go test -v -run TestReadProfile ./internal/services/
 
 # Run tests with coverage
-uv run pytest --cov=src --cov-report=html
+go test -coverprofile=coverage.out ./internal/...
+go tool cover -html=coverage.out
 
-# Lint and format
-uv run ruff format src tests
-uv run ruff check src tests
-uv run ruff check --fix src tests
+# Vet
+go vet ./...
 
-# Run the CLI
-awsop --help
-awsop --list-profiles
-awsop production --debug
+# Run the CLI (during development)
+go run ./cmd/awsop/ --help
+go run ./cmd/awsop/ --list-profiles
+go run ./cmd/awsop/ production --debug
 ```
 
 ## Architecture
 
 ```
-src/awsop/
-├── cli.py              # CLI entry point (Typer app, option parsing)
-├── logging.py          # Logging configuration
+cmd/awsop/
+└── main.go              # Entry point
+internal/
+├── cli/
+│   └── root.go          # Cobra root command, all flags and main logic
 ├── app/
-│   ├── profile_manager.py     # ProfileConfig dataclass, reads ~/.aws/config
-│   └── credentials_manager.py # Credentials dataclass, orchestrates assume-role
+│   ├── types.go              # ProfileConfig, Credentials structs
+│   ├── profile_manager.go    # Reads ~/.aws/config profiles
+│   ├── credentials_manager.go # Cache check, AssumeRole, export/unset formatting
+│   └── console_manager.go    # Console URL generation, browser launch
 ├── services/
-│   ├── aws_config.py         # AWSConfigParser - parses ~/.aws/config
-│   ├── aws_sts.py            # STSClient - boto3 STS wrapper
-│   ├── onepassword.py        # OnePasswordClient - op CLI wrapper
-│   └── credentials_writer.py # Writes to ~/.aws/credentials
-├── shell/
-│   └── wrapper.py     # Generates zsh wrapper function for eval
-└── ui/
-    └── console.py     # ConsoleUI - Rich-based stderr output (spinner, colors)
+│   ├── aws_config.go         # AWSConfigParser - parses ~/.aws/config (INI)
+│   ├── aws_sts.go            # STSClient - aws-sdk-go-v2 STS wrapper
+│   ├── onepassword.go        # OnePasswordClient - op CLI wrapper
+│   ├── console_service.go    # Federation endpoint, service URL mapping
+│   └── credentials_writer.go # Writes to ~/.aws/credentials
+├── ui/
+│   └── console.go     # ConsoleUI - ANSI colored stderr output (spinner, status)
+└── shell/
+    └── wrapper.go     # Generates zsh wrapper function for eval
 ```
 
 ### Key Design Patterns
 
-- CLI layer (`cli.py`) handles argument parsing and error handling
-- Application layer (`app/`) orchestrates business logic
-- Services layer (`services/`) handles external integrations (1Password, AWS, filesystem)
-- UI layer (`ui/`) outputs status messages to stderr (keeps stdout clean for `eval`)
+- CLI layer (`internal/cli/`) handles argument parsing and error handling via cobra
+- Application layer (`internal/app/`) orchestrates business logic
+- Services layer (`internal/services/`) handles external integrations (1Password, AWS, filesystem)
+- UI layer (`internal/ui/`) outputs status messages to stderr (keeps stdout clean for `eval`)
 
 ### Output Convention
 
 - `stdout`: export/unset commands only (for shell `eval`)
-- `stderr`: all user feedback (spinner, success/error messages via Rich)
+- `stderr`: all user feedback (spinner, success/error messages)
 
 ## Test Structure
 
 ```
-tests/
-├── unit/           # Component tests with mocks
-├── property/       # Hypothesis property-based tests
-└── integration/    # End-to-end flow tests
+internal/
+├── services/
+│   ├── aws_config_test.go
+│   ├── console_service_test.go
+│   ├── credentials_writer_test.go
+│   └── onepassword_test.go
+└── app/
+    ├── credentials_manager_test.go
+    └── profile_manager_test.go
 ```
 
 ## Key Dependencies
 
-- `typer`: CLI framework
-- `rich`: Terminal UI (spinner, colors)
-- `boto3`: AWS SDK
-- `hypothesis`: Property-based testing
+- `github.com/spf13/cobra`: CLI framework
+- `github.com/aws/aws-sdk-go-v2`: AWS SDK (STS only)
+- `gopkg.in/ini.v1`: INI file parsing for AWS config/credentials
 
 ## Important Notes
 
 - This tool requires 1Password CLI (`op`) to be installed and signed in
 - The shell wrapper (`--init-shell`) must be added to `.zshrc` for `eval` to work
 - Protected profiles in `~/.aws/credentials` require `manager = awsop` to be overwritten
+- Version is injected via `-ldflags` at build time; defaults to `dev`
