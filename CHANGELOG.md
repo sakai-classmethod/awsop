@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.0 (2026-06-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* installation method changed from `uv tool install` to `go install ./cmd/awsop/`. Shell integration (`eval "$(awsop --init-shell)"`) remains unchanged.
+
+### Features
+
+* add credentials cache to skip 1Password when env creds are valid ([c590023](https://github.com/sakai-classmethod/awsop/commit/c59002367655c7b79ea3cbcf1f5fe22554c6d760))
+* **cli:** control show-commands output behavior ([34f2e9d](https://github.com/sakai-classmethod/awsop/commit/34f2e9dc4188bc63155b05a9ac5aa79438632f75))
+* **cli:** control show-commands output behavior ([e6c9295](https://github.com/sakai-classmethod/awsop/commit/e6c9295b8424b4fe37d8d60b55a6cf06d44041ab))
+* **credentials:** add cache to skip 1Password ([a427dbf](https://github.com/sakai-classmethod/awsop/commit/a427dbf70ee912b1f7c653c81a887fa30620d81f))
+* **credentials:** remove AWS_PROFILE environment variable management ([918bf38](https://github.com/sakai-classmethod/awsop/commit/918bf385a85be71b0d4c685eace1cb9d861e3ef6))
+* **credentials:** remove AWS_PROFILE environment variable management ([fa70d56](https://github.com/sakai-classmethod/awsop/commit/fa70d568cfec29d7535bd62c293a892de32f9f03))
+* **version:** implement dynamic version retrieval from pyproject.toml ([c5ab425](https://github.com/sakai-classmethod/awsop/commit/c5ab4257fcbea0b9f5676d111cb47967c8b7270d))
+* **version:** implement dynamic version retrieval from pyproject.toml ([28d3b45](https://github.com/sakai-classmethod/awsop/commit/28d3b4582990e442c3ae7ef495deacd7a4f28026))
+
+
+### Bug Fixes
+
+* **cli:** support -h short option and fix help display in shell wrapper ([42cd7ed](https://github.com/sakai-classmethod/awsop/commit/42cd7edbdd7e861ed97922260d86e373730361d4))
+* **cli:** support -h short option and fix help display in shell wrapper ([3205e11](https://github.com/sakai-classmethod/awsop/commit/3205e11dc6d2e3bc7f8bb82eaae644b3c720b9ea))
+* **ui:** escape Rich markup in credential expiry message ([21157a7](https://github.com/sakai-classmethod/awsop/commit/21157a7b97b6871da2ccf0cf8bdf0e2bc693e25a))
+
+
+### Code Refactoring
+
+* rewrite CLI from Python to Go ([fc63f7b](https://github.com/sakai-classmethod/awsop/commit/fc63f7bbfcf7a6b88a072bd002b29f9dda1668be))
+
 ## [Unreleased]
 
 ### Added
