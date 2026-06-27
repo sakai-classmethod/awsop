@@ -142,7 +142,7 @@ func (m *CredentialsManager) AssumeRole(roleARN, sessionName string, duration in
 	case string:
 		parsed, parseErr := time.Parse(time.RFC3339, v)
 		if parseErr != nil {
-			return nil, fmt.Errorf("Expirationの解析に失敗しました: %w", parseErr)
+			return nil, fmt.Errorf("expiration の解析に失敗しました: %w", parseErr)
 		}
 		expiration = parsed
 	default:

@@ -51,13 +51,14 @@ func NewRootCommand() *cobra.Command {
 		Args:          cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Setup logging
-			if debug {
+			switch {
+			case debug:
 				log.SetFlags(log.LstdFlags | log.Lshortfile)
 				log.SetOutput(os.Stderr)
-			} else if info {
+			case info:
 				log.SetFlags(log.LstdFlags)
 				log.SetOutput(os.Stderr)
-			} else {
+			default:
 				log.SetOutput(nil)
 			}
 
