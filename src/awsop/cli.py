@@ -1,5 +1,6 @@
 """CLIレイヤー - コマンドライン引数の解析とバリデーション"""
 
+import os
 import sys
 import typer
 from typing import Optional
@@ -80,6 +81,11 @@ def main(
     console_link: bool = typer.Option(
         False, "--console-link", help="Print console URL without opening browser"
     ),
+    force_refresh: bool = typer.Option(
+        False,
+        "--force-refresh",
+        help="Force refresh credentials even if cached credentials are still valid",
+    ),
     info: bool = typer.Option(False, "--info", "-i", help="Show INFO level logs"),
     debug: bool = typer.Option(False, "--debug", help="Show DEBUG level logs"),
     version: bool = typer.Option(False, "--version", "-v", help="Show version"),
@@ -153,20 +159,9 @@ def main(
         from awsop.app.credentials_manager import CredentialsManager
         from awsop.ui.console import ConsoleUI
         from awsop.services.credentials_writer import CredentialsWriter
-        from awsop.services.onepassword import OnePasswordClient
         from datetime import datetime
 
         ui = ConsoleUI()
-
-        # 1Password CLIの利用可能性をチェック（要件6.1, 6.2）
-        # ただし、--mfa-tokenが指定されている場合はスキップ
-        if not mfa_token:
-            op_client = OnePasswordClient()
-            if not op_client.check_availability():
-                ui.error(
-                    "1Password CLIが利用できません。opコマンドをインストールしてください。"
-                )
-                sys.exit(1)
 
         try:
             # ロール期間のバリデーション（要件4.4.3）
@@ -231,17 +226,55 @@ def main(
             # CredentialsManagerを使用して認証情報を取得
             credentials_manager = CredentialsManager()
 
-            # スピナーを表示しながら認証情報を取得（要件8.1）
-            with ui.spinner("1Password経由で認証情報を取得中..."):
-                credentials = credentials_manager.assume_role(
-                    role_arn=effective_role_arn,
-                    session_name=session_name,
-                    duration=role_duration,
-                    region=effective_region,
-                    profile=effective_profile,
-                    external_id=effective_external_id,
-                    mfa_token=mfa_token,
+            credentials = None
+            cache_profile = effective_profile or os.environ.get("AWSOP_PROFILE")
+            can_use_cache = (
+                not force_refresh
+                and not mfa_token
+                and not role_arn
+                and cache_profile is not None
+            )
+            if can_use_cache:
+                cache_region = effective_region
+                if effective_profile is None and region is None:
+                    cache_region = None
+
+                credentials = credentials_manager.get_cached_credentials(
+                    profile=cache_profile,
+                    region=cache_region,
                 )
+                if credentials:
+                    effective_profile = credentials.profile
+                    effective_region = credentials.region
+                    ui.info(f"\\[{effective_profile}] Cached credentials reused")
+
+            if credentials is None:
+                if not effective_role_arn:
+                    ui.error("プロファイルまたは --role-arn を指定してください")
+                    sys.exit(1)
+
+                # 1Password CLIの利用可能性をチェック（要件6.1, 6.2）
+                # ただし、--mfa-tokenが指定されている場合はスキップ
+                if (
+                    not mfa_token
+                    and not credentials_manager.onepassword_client.check_availability()
+                ):
+                    ui.error(
+                        "1Password CLIが利用できません。opコマンドをインストールしてください。"
+                    )
+                    sys.exit(1)
+
+                # スピナーを表示しながら認証情報を取得（要件8.1）
+                with ui.spinner("1Password経由で認証情報を取得中..."):
+                    credentials = credentials_manager.assume_role(
+                        role_arn=effective_role_arn,
+                        session_name=session_name,
+                        duration=role_duration,
+                        region=effective_region,
+                        profile=effective_profile,
+                        external_id=effective_external_id,
+                        mfa_token=mfa_token,
+                    )
 
             # --output-profileオプションが指定された場合、認証情報をファイルに書き込む（要件4.6.1）
             if output_profile:
@@ -327,7 +360,7 @@ def main(
             # Rich markupで角括弧をエスケープ（\[...] でリテラル表示）
             ui.info(f"\\[{effective_profile}] Credentials will expire {expiration_str}")
 
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             # 要件11.3: AWS設定ファイルの読み取りが失敗
             ui.error("AWS設定ファイルの読み取りに失敗しました")
             if debug:
@@ -335,7 +368,7 @@ def main(
 
                 traceback.print_exc()
             sys.exit(1)
-        except KeyError as e:
+        except KeyError:
             # プロファイルが見つからない場合
             ui.error(f"プロファイル '{profile or source_profile}' が見つかりません")
             if debug:

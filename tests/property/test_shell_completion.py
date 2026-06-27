@@ -20,6 +20,11 @@ ALL_OPTIONS = [
     "-l",
     "--list-profiles",
     "--init-shell",
+    "-c",
+    "--console",
+    "--console-service",
+    "--console-link",
+    "--force-refresh",
     "-r",
     "--region",
     "-n",
@@ -36,7 +41,6 @@ ALL_OPTIONS = [
     "--source-profile",
     "-e",
     "--external-id",
-    "-c",
     "--config-file",
     "--credentials-file",
     "-i",
@@ -275,19 +279,16 @@ def test_error_tolerance(current_word):
         # 補完候補を取得（エラーが発生しないことを確認）
         try:
             # 文脈に応じた補完タイプを決定
-            options = []
             profiles = []
 
             # 現在の単語が - で始まる場合はオプション補完
             if current_word.startswith("-"):
-                options = ALL_OPTIONS
                 # プロファイルは空であるべき
                 profiles = []
             # それ以外はプロファイル補完
             else:
                 # configファイルが存在しないため、プロファイルは空
                 profiles = []
-                options = []
 
             # エラーが発生しないことを確認（ここまで到達すればOK）
             assert True, "補完関数がエラーなく実行されました"
