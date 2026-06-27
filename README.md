@@ -160,6 +160,10 @@ awsop を使い始めるには、まずシェル統合をセットアップし�
    - `AWS_PROFILE`
    - `AWSOP_EXPIRATION`
 
+   同じプロファイルの認証情報がまだ有効な場合、次回以降の `awsop production` は
+   既存の環境変数を再利用し、1Password CLI を呼び出しません。強制的に再取得する場合は
+   `awsop production --force-refresh` を実行してください。
+
 3. **認証情報を確認**
 
    ```bash
@@ -299,6 +303,7 @@ awsop --role-arn arn:aws:iam::123456789012:role/MyRole
 | `--console`          | `-c`   | AWS コンソールをブラウザで開く             |
 | `--console-service`  | -      | 開くサービスを指定（例: s3, lambda）       |
 | `--console-link`     | -      | コンソール URL のみを出力                  |
+| `--force-refresh`    | -      | 有効な認証情報があっても再取得             |
 | `--region`           | `-r`   | AWS リージョンを指定                       |
 | `--session-name`     | `-n`   | AssumeRole のセッション名を指定            |
 | `--role-duration`    | `-d`   | ロールの有効期間（秒）を指定               |
@@ -345,6 +350,15 @@ awsop --role-arn arn:aws:iam::123456789012:role/MyRole
       <code>awsop production --debug</code> で詳細ログを確認してください。<br>
       <code>role_arn</code> が正しく設定されているか確認してください。<br>
       IAM ロールの信頼ポリシーが正しいか確認してください。
+    </td>
+  </tr>
+  <tr>
+    <td>Orca.app などから毎回 macOS の権限ダイアログが出る</td>
+    <td>
+      1Password CLI のアプリ連携がホストアプリ経由で実行されるためです。<br>
+      同じプロファイルの認証情報が有効な間はキャッシュが再利用され、<br>
+      1Password CLI の呼び出しを避けます。再取得が必要な場合だけ<br>
+      <code>awsop production --force-refresh</code> を使用してください。
     </td>
   </tr>
   <tr>

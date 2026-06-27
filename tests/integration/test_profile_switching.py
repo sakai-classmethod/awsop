@@ -7,7 +7,7 @@
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typer.testing import CliRunner
 
 from awsop.cli import app
@@ -94,6 +94,116 @@ source_profile = default
 
             # 標準出力にはexportコマンドが含まれない
             assert "export AWS_ACCESS_KEY_ID" not in result.stdout
+
+
+def test_profile_switching_reuses_cached_credentials():
+    """同じプロファイルの有効な認証情報がある場合は1Password CLIを呼ばない"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_file = Path(tmpdir) / "config"
+        config_file.write_text(
+            """[profile test-profile]
+role_arn = arn:aws:iam::123456789012:role/TestRole
+region = us-west-2
+"""
+        )
+
+        expiration = datetime.now(timezone.utc) + timedelta(hours=1)
+        env = {
+            "AWS_ACCESS_KEY_ID": "AKIAIOSFODNN7EXAMPLE",
+            "AWS_SECRET_ACCESS_KEY": "cached-secret",
+            "AWS_SESSION_TOKEN": "cached-token",
+            "AWS_REGION": "us-west-2",
+            "AWSOP_PROFILE": "test-profile",
+            "AWSOP_EXPIRATION": expiration.isoformat(),
+        }
+
+        with (
+            patch(
+                "awsop.app.credentials_manager.OnePasswordClient"
+            ) as mock_op_client_class,
+            patch("awsop.app.credentials_manager.STSClient"),
+        ):
+            mock_op_client = Mock()
+            mock_op_client.check_availability.return_value = True
+            mock_op_client_class.return_value = mock_op_client
+
+            result = runner.invoke(
+                app,
+                [
+                    "--config-file",
+                    str(config_file),
+                    "test-profile",
+                ],
+                env=env,
+                catch_exceptions=False,
+            )
+
+            assert result.exit_code == 0
+            assert "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" in result.stdout
+            assert "export AWS_SECRET_ACCESS_KEY=cached-secret" in result.stdout
+            assert "export AWS_SESSION_TOKEN=cached-token" in result.stdout
+            assert "Cached credentials reused" in result.stderr
+            mock_op_client.check_availability.assert_not_called()
+            mock_op_client.run_aws_command.assert_not_called()
+
+
+def test_profile_switching_force_refresh_ignores_cached_credentials():
+    """--force-refresh指定時は有効なキャッシュがあっても再取得する"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_file = Path(tmpdir) / "config"
+        config_file.write_text(
+            """[profile test-profile]
+role_arn = arn:aws:iam::123456789012:role/TestRole
+region = us-west-2
+"""
+        )
+
+        expiration = datetime.now(timezone.utc) + timedelta(hours=1)
+        env = {
+            "AWS_ACCESS_KEY_ID": "AKIAIOSFODNN7EXAMPLE",
+            "AWS_SECRET_ACCESS_KEY": "cached-secret",
+            "AWS_SESSION_TOKEN": "cached-token",
+            "AWS_REGION": "us-west-2",
+            "AWSOP_PROFILE": "test-profile",
+            "AWSOP_EXPIRATION": expiration.isoformat(),
+        }
+        mock_response = {
+            "Credentials": {
+                "AccessKeyId": "AKIAFORCEDREFRESH",
+                "SecretAccessKey": "refreshed-secret",
+                "SessionToken": "refreshed-token",
+                "Expiration": expiration,
+            }
+        }
+
+        with (
+            patch(
+                "awsop.app.credentials_manager.OnePasswordClient"
+            ) as mock_op_client_class,
+            patch("awsop.app.credentials_manager.STSClient"),
+        ):
+            mock_op_client = Mock()
+            mock_op_client.check_availability.return_value = True
+            mock_op_client.run_aws_command.return_value = mock_response
+            mock_op_client_class.return_value = mock_op_client
+
+            result = runner.invoke(
+                app,
+                [
+                    "--config-file",
+                    str(config_file),
+                    "--force-refresh",
+                    "test-profile",
+                ],
+                env=env,
+                catch_exceptions=False,
+            )
+
+            assert result.exit_code == 0
+            assert "export AWS_ACCESS_KEY_ID=AKIAFORCEDREFRESH" in result.stdout
+            assert "Cached credentials reused" not in result.stderr
+            assert mock_op_client.check_availability.called
+            mock_op_client.run_aws_command.assert_called_once()
 
 
 def test_profile_switching_no_role_arn():

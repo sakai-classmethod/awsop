@@ -61,6 +61,7 @@ _awsop() {
     '--console:AWSコンソールをブラウザで開く'
     '--console-service:開くサービスを指定'
     '--console-link:コンソールURLのみを出力'
+    '--force-refresh:有効なキャッシュがあっても認証情報を再取得'
     '-r:AWSリージョンを指定'
     '--region:AWSリージョンを指定'
     '-n:セッション名を指定'

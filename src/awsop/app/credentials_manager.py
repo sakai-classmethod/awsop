@@ -1,10 +1,11 @@
 """認証情報の取得と管理"""
 
 import logging
+import os
 import subprocess
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from awsop.services.onepassword import OnePasswordClient
@@ -42,6 +43,67 @@ class CredentialsManager:
         """
         self.onepassword_client = onepassword_client or OnePasswordClient()
         self.sts_client = sts_client or STSClient()
+
+    def get_cached_credentials(
+        self,
+        profile: str,
+        region: Optional[str] = None,
+        min_ttl: timedelta = timedelta(minutes=5),
+        env: Optional[dict[str, str]] = None,
+        now: Optional[datetime] = None,
+    ) -> Optional[Credentials]:
+        """
+        現在のシェルに残っている有効な awsop 認証情報を取得
+
+        Args:
+            profile: 期待するプロファイル名
+            region: 上書きするリージョン
+            min_ttl: この残り時間を下回る場合は期限切れ扱いにする
+            env: 環境変数（テスト用）
+            now: 現在時刻（テスト用）
+
+        Returns:
+            Credentials: 再利用可能な認証情報。使えない場合は None
+        """
+        env = env if env is not None else os.environ
+
+        if not profile or env.get("AWSOP_PROFILE") != profile:
+            return None
+
+        required_vars = [
+            "AWS_ACCESS_KEY_ID",
+            "AWS_SECRET_ACCESS_KEY",
+            "AWS_SESSION_TOKEN",
+            "AWSOP_EXPIRATION",
+        ]
+        if any(not env.get(var) for var in required_vars):
+            return None
+
+        try:
+            from dateutil import parser as date_parser
+
+            expiration = date_parser.isoparse(env["AWSOP_EXPIRATION"])
+        except (TypeError, ValueError):
+            return None
+
+        current_time = now or datetime.now(expiration.tzinfo)
+        if expiration.tzinfo is None and current_time.tzinfo is not None:
+            current_time = current_time.replace(tzinfo=None)
+
+        if expiration <= current_time + min_ttl:
+            return None
+
+        return Credentials(
+            access_key_id=env["AWS_ACCESS_KEY_ID"],
+            secret_access_key=env["AWS_SECRET_ACCESS_KEY"],
+            session_token=env["AWS_SESSION_TOKEN"],
+            expiration=expiration,
+            region=region
+            or env.get("AWS_REGION")
+            or env.get("AWS_DEFAULT_REGION")
+            or "ap-northeast-1",
+            profile=profile,
+        )
 
     def assume_role(
         self,
