@@ -30,8 +30,8 @@ var envVarsToRemove = map[string]struct{}{
 	"AWS_SESSION_TOKEN":     {},
 	"AWS_DEFAULT_REGION":    {},
 	"AWS_REGION":            {},
-	"AWSOP_PROFILE":        {},
-	"AWSOP_EXPIRATION":     {},
+	"AWSOP_PROFILE":         {},
+	"AWSOP_EXPIRATION":      {},
 }
 
 // RunAWSCommand executes an AWS CLI command through the 1Password plugin and

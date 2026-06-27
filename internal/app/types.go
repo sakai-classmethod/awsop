@@ -14,10 +14,10 @@ type ProfileConfig struct {
 
 // Credentials represents temporary AWS credentials obtained via STS.
 type Credentials struct {
-	AccessKeyID    string
+	AccessKeyID     string
 	SecretAccessKey string
-	SessionToken   string
-	Expiration     time.Time
-	Region         string
-	Profile        string
+	SessionToken    string
+	Expiration      time.Time
+	Region          string
+	Profile         string
 }

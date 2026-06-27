@@ -71,12 +71,12 @@ func (m *CredentialsManager) GetCachedCredentials(profile string, region string,
 	}
 
 	return &Credentials{
-		AccessKeyID:    accessKeyID,
+		AccessKeyID:     accessKeyID,
 		SecretAccessKey: secretAccessKey,
-		SessionToken:   sessionToken,
-		Expiration:     expiration,
-		Region:         resolvedRegion,
-		Profile:        profile,
+		SessionToken:    sessionToken,
+		Expiration:      expiration,
+		Region:          resolvedRegion,
+		Profile:         profile,
 	}
 }
 
@@ -156,12 +156,12 @@ func (m *CredentialsManager) AssumeRole(roleARN, sessionName string, duration in
 	}
 
 	return &Credentials{
-		AccessKeyID:    accessKeyID,
+		AccessKeyID:     accessKeyID,
 		SecretAccessKey: secretAccessKey,
-		SessionToken:   sessionToken,
-		Expiration:     expiration,
-		Region:         resolvedRegion,
-		Profile:        profile,
+		SessionToken:    sessionToken,
+		Expiration:      expiration,
+		Region:          resolvedRegion,
+		Profile:         profile,
 	}, nil
 }
 

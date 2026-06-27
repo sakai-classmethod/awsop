@@ -10,12 +10,12 @@ func TestFormatExportCommands(t *testing.T) {
 	m := &CredentialsManager{}
 	expiration := time.Date(2026, 6, 27, 12, 0, 0, 0, time.UTC)
 	creds := &Credentials{
-		AccessKeyID:    "AKIAIOSFODNN7EXAMPLE",
+		AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
 		SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-		SessionToken:   "FwoGZXIvYXdzEBYaDH+EXAMPLETOKEN",
-		Expiration:     expiration,
-		Region:         "ap-northeast-1",
-		Profile:        "production",
+		SessionToken:    "FwoGZXIvYXdzEBYaDH+EXAMPLETOKEN",
+		Expiration:      expiration,
+		Region:          "ap-northeast-1",
+		Profile:         "production",
 	}
 
 	result := m.FormatExportCommands(creds)
@@ -140,15 +140,15 @@ func TestGetCachedCredentials_MissingVars(t *testing.T) {
 			name: "missing AWS_ACCESS_KEY_ID",
 			envVars: map[string]string{
 				"AWSOP_PROFILE":         "myprofile",
-				"AWS_SECRET_ACCESS_KEY":  "secret",
-				"AWS_SESSION_TOKEN":      "token",
-				"AWSOP_EXPIRATION":       time.Now().Add(1 * time.Hour).UTC().Format(time.RFC3339),
+				"AWS_SECRET_ACCESS_KEY": "secret",
+				"AWS_SESSION_TOKEN":     "token",
+				"AWSOP_EXPIRATION":      time.Now().Add(1 * time.Hour).UTC().Format(time.RFC3339),
 			},
 		},
 		{
 			name: "missing AWS_SECRET_ACCESS_KEY",
 			envVars: map[string]string{
-				"AWSOP_PROFILE":    "myprofile",
+				"AWSOP_PROFILE":     "myprofile",
 				"AWS_ACCESS_KEY_ID": "AKIAIOSFODNN7EXAMPLE",
 				"AWS_SESSION_TOKEN": "token",
 				"AWSOP_EXPIRATION":  time.Now().Add(1 * time.Hour).UTC().Format(time.RFC3339),
@@ -159,8 +159,8 @@ func TestGetCachedCredentials_MissingVars(t *testing.T) {
 			envVars: map[string]string{
 				"AWSOP_PROFILE":         "myprofile",
 				"AWS_ACCESS_KEY_ID":     "AKIAIOSFODNN7EXAMPLE",
-				"AWS_SECRET_ACCESS_KEY":  "secret",
-				"AWSOP_EXPIRATION":       time.Now().Add(1 * time.Hour).UTC().Format(time.RFC3339),
+				"AWS_SECRET_ACCESS_KEY": "secret",
+				"AWSOP_EXPIRATION":      time.Now().Add(1 * time.Hour).UTC().Format(time.RFC3339),
 			},
 		},
 		{
@@ -168,8 +168,8 @@ func TestGetCachedCredentials_MissingVars(t *testing.T) {
 			envVars: map[string]string{
 				"AWSOP_PROFILE":         "myprofile",
 				"AWS_ACCESS_KEY_ID":     "AKIAIOSFODNN7EXAMPLE",
-				"AWS_SECRET_ACCESS_KEY":  "secret",
-				"AWS_SESSION_TOKEN":      "token",
+				"AWS_SECRET_ACCESS_KEY": "secret",
+				"AWS_SESSION_TOKEN":     "token",
 			},
 		},
 	}
