@@ -26,3 +26,11 @@ homebrew_casks:
     homepage: https://github.com/sakai-classmethod/awsop
     description: CLI tool for managing AWS credentials via 1Password integration
     license: MIT
+    # Binaries are not signed/notarized, so Gatekeeper blocks them unless the
+    # quarantine attribute is removed after installation.
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/awsop"]
+          end
