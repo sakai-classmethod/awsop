@@ -10,10 +10,43 @@ import (
 	"github.com/sakai-classmethod/awsop/internal/services"
 )
 
+// OnePasswordClientAPI defines the 1Password operations used by the manager.
+type OnePasswordClientAPI interface {
+	CheckAvailability() bool
+	RunAWSCommand([]string) (map[string]interface{}, error)
+	GetItemCredentials(item, vault string) (string, string, error)
+	GetItemOTP(item, vault string) (string, error)
+}
+
+// STSClientAPI defines the STS operation used by the manager.
+type STSClientAPI interface {
+	AssumeRole(roleARN, roleSessionName string, durationSeconds int32, externalID, mfaSerial, mfaToken string) (map[string]interface{}, error)
+}
+
+// AssumeRoleParams contains all inputs used to select and execute an
+// AssumeRole credential path.
+type AssumeRoleParams struct {
+	RoleARN       string
+	SessionName   string
+	Duration      int
+	Region        string
+	Profile       string
+	ExternalID    string
+	MFASerial     string
+	MFAToken      string
+	SourceProfile string
+	OpItem        string
+	OpVault       string
+}
+
 // CredentialsManager orchestrates credential retrieval via 1Password or STS.
 type CredentialsManager struct {
-	OnePasswordClient *services.OnePasswordClient
-	STSClient         *services.STSClient
+	OnePasswordClient OnePasswordClientAPI
+	STSClient         STSClientAPI
+
+	newSTSClient                      func(region string) (STSClientAPI, error)
+	newSTSClientWithSharedProfile     func(profileName, region string) (STSClientAPI, error)
+	newSTSClientWithStaticCredentials func(accessKeyID, secretAccessKey, region string) (STSClientAPI, error)
 }
 
 // NewCredentialsManager creates a CredentialsManager with a OnePasswordClient.
@@ -21,6 +54,15 @@ type CredentialsManager struct {
 func NewCredentialsManager() *CredentialsManager {
 	return &CredentialsManager{
 		OnePasswordClient: services.NewOnePasswordClient(),
+		newSTSClient: func(region string) (STSClientAPI, error) {
+			return services.NewSTSClient(region)
+		},
+		newSTSClientWithSharedProfile: func(profileName, region string) (STSClientAPI, error) {
+			return services.NewSTSClientWithSharedProfile(profileName, region)
+		},
+		newSTSClientWithStaticCredentials: func(accessKeyID, secretAccessKey, region string) (STSClientAPI, error) {
+			return services.NewSTSClientWithStaticCredentials(accessKeyID, secretAccessKey, region)
+		},
 	}
 }
 
@@ -80,39 +122,87 @@ func (m *CredentialsManager) GetCachedCredentials(profile string, region string,
 	}
 }
 
-// AssumeRole obtains temporary credentials by assuming an IAM role.
-// If mfaToken is provided, uses STS directly; otherwise uses 1Password CLI.
-func (m *CredentialsManager) AssumeRole(roleARN, sessionName string, duration int, region, profile string, externalID, mfaToken string) (*Credentials, error) {
+// AssumeRole obtains temporary credentials by assuming an IAM role through the
+// path selected from params.
+func (m *CredentialsManager) AssumeRole(params AssumeRoleParams) (*Credentials, error) {
 	var response map[string]interface{}
 	var err error
 
-	if mfaToken != "" {
-		// MFA path: use STS directly
-		if m.STSClient == nil {
-			stsClient, stsErr := services.NewSTSClient()
-			if stsErr != nil {
-				return nil, fmt.Errorf("STSクライアントの作成に失敗しました: %w", stsErr)
-			}
-			m.STSClient = stsClient
+	switch {
+	case params.MFAToken != "":
+		if params.MFASerial == "" {
+			return nil, fmt.Errorf("プロファイルに mfa_serial が定義されていません")
 		}
-		response, err = m.STSClient.AssumeRole(roleARN, sessionName, int32(duration), externalID)
+
+		stsClient := m.STSClient
+		if stsClient == nil {
+			if params.SourceProfile != "" {
+				stsClient, err = m.createSTSClientWithSharedProfile(params.SourceProfile, params.Region)
+			} else {
+				stsClient, err = m.createSTSClient(params.Region)
+			}
+			if err != nil {
+				return nil, fmt.Errorf("STSクライアントの作成に失敗しました: %w", err)
+			}
+		}
+		response, err = stsClient.AssumeRole(
+			params.RoleARN,
+			params.SessionName,
+			int32(params.Duration),
+			params.ExternalID,
+			params.MFASerial,
+			params.MFAToken,
+		)
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		// 1Password path
+
+	case params.Duration > 3600 && params.MFASerial != "":
+		if params.OpItem == "" {
+			return nil, fmt.Errorf("MFA セッション（role chaining）経由では 3600 秒が上限です。~/.aws/config のプロファイルに awsop_op_item を設定するか、-m で MFA トークンを指定してください")
+		}
+		if !m.OnePasswordClient.CheckAvailability() {
+			return nil, fmt.Errorf("1Password CLIが見つかりません。opコマンドをインストールしてください")
+		}
+
+		accessKeyID, secretAccessKey, credentialsErr := m.OnePasswordClient.GetItemCredentials(params.OpItem, params.OpVault)
+		if credentialsErr != nil {
+			return nil, credentialsErr
+		}
+		otp, otpErr := m.OnePasswordClient.GetItemOTP(params.OpItem, params.OpVault)
+		if otpErr != nil {
+			return nil, otpErr
+		}
+
+		stsClient, clientErr := m.createSTSClientWithStaticCredentials(accessKeyID, secretAccessKey, params.Region)
+		if clientErr != nil {
+			return nil, fmt.Errorf("STSクライアントの作成に失敗しました: %w", clientErr)
+		}
+		response, err = stsClient.AssumeRole(
+			params.RoleARN,
+			params.SessionName,
+			int32(params.Duration),
+			params.ExternalID,
+			params.MFASerial,
+			otp,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+	default:
 		if !m.OnePasswordClient.CheckAvailability() {
 			return nil, fmt.Errorf("1Password CLIが見つかりません。opコマンドをインストールしてください")
 		}
 
 		command := []string{
 			"sts", "assume-role",
-			"--role-arn", roleARN,
-			"--role-session-name", sessionName,
-			"--duration-seconds", strconv.Itoa(duration),
+			"--role-arn", params.RoleARN,
+			"--role-session-name", params.SessionName,
+			"--duration-seconds", strconv.Itoa(params.Duration),
 		}
-		if externalID != "" {
-			command = append(command, "--external-id", externalID)
+		if params.ExternalID != "" {
+			command = append(command, "--external-id", params.ExternalID)
 		}
 
 		response, err = m.OnePasswordClient.RunAWSCommand(command)
@@ -150,7 +240,7 @@ func (m *CredentialsManager) AssumeRole(roleARN, sessionName string, duration in
 	}
 
 	// Determine region
-	resolvedRegion := region
+	resolvedRegion := params.Region
 	if resolvedRegion == "" {
 		resolvedRegion = "ap-northeast-1"
 	}
@@ -161,8 +251,29 @@ func (m *CredentialsManager) AssumeRole(roleARN, sessionName string, duration in
 		SessionToken:    sessionToken,
 		Expiration:      expiration,
 		Region:          resolvedRegion,
-		Profile:         profile,
+		Profile:         params.Profile,
 	}, nil
+}
+
+func (m *CredentialsManager) createSTSClient(region string) (STSClientAPI, error) {
+	if m.newSTSClient != nil {
+		return m.newSTSClient(region)
+	}
+	return services.NewSTSClient(region)
+}
+
+func (m *CredentialsManager) createSTSClientWithSharedProfile(profileName, region string) (STSClientAPI, error) {
+	if m.newSTSClientWithSharedProfile != nil {
+		return m.newSTSClientWithSharedProfile(profileName, region)
+	}
+	return services.NewSTSClientWithSharedProfile(profileName, region)
+}
+
+func (m *CredentialsManager) createSTSClientWithStaticCredentials(accessKeyID, secretAccessKey, region string) (STSClientAPI, error) {
+	if m.newSTSClientWithStaticCredentials != nil {
+		return m.newSTSClientWithStaticCredentials(accessKeyID, secretAccessKey, region)
+	}
+	return services.NewSTSClientWithStaticCredentials(accessKeyID, secretAccessKey, region)
 }
 
 // FormatExportCommands returns shell export commands for the given credentials.

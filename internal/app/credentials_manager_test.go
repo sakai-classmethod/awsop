@@ -1,10 +1,70 @@
 package app
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 )
+
+type mockOnePasswordClient struct {
+	available           bool
+	runAWSCommandCalls  int
+	getCredentialsCalls int
+	getOTPCalls         int
+	accessKeyID         string
+	secretAccessKey     string
+	otp                 string
+	credentialItem      string
+	credentialVault     string
+	otpItem             string
+	otpVault            string
+}
+
+func (m *mockOnePasswordClient) CheckAvailability() bool { return m.available }
+
+func (m *mockOnePasswordClient) RunAWSCommand(_ []string) (map[string]interface{}, error) {
+	m.runAWSCommandCalls++
+	return testAssumeRoleResponse(), nil
+}
+
+func (m *mockOnePasswordClient) GetItemCredentials(item, vault string) (string, string, error) {
+	m.getCredentialsCalls++
+	m.credentialItem, m.credentialVault = item, vault
+	return m.accessKeyID, m.secretAccessKey, nil
+}
+
+func (m *mockOnePasswordClient) GetItemOTP(item, vault string) (string, error) {
+	m.getOTPCalls++
+	m.otpItem, m.otpVault = item, vault
+	return m.otp, nil
+}
+
+type mockSTSClient struct {
+	calls      int
+	mfaSerial  string
+	mfaToken   string
+	externalID string
+}
+
+func (m *mockSTSClient) AssumeRole(_, _ string, _ int32, externalID, mfaSerial, mfaToken string) (map[string]interface{}, error) {
+	m.calls++
+	m.externalID = externalID
+	m.mfaSerial = mfaSerial
+	m.mfaToken = mfaToken
+	return testAssumeRoleResponse(), nil
+}
+
+func testAssumeRoleResponse() map[string]interface{} {
+	return map[string]interface{}{
+		"Credentials": map[string]interface{}{
+			"AccessKeyId":     "temporary-access-key",
+			"SecretAccessKey": "temporary-secret-key",
+			"SessionToken":    "temporary-session-token",
+			"Expiration":      "2026-08-04T12:00:00Z",
+		},
+	}
+}
 
 func TestFormatExportCommands(t *testing.T) {
 	m := &CredentialsManager{}
@@ -205,5 +265,165 @@ func TestGetCachedCredentials_Expired(t *testing.T) {
 
 	if creds != nil {
 		t.Fatalf("expected nil credentials when expired (TTL insufficient), got %+v", creds)
+	}
+}
+
+func TestAssumeRole_MFATokenUsesSharedProfileDirectPath(t *testing.T) {
+	onePassword := &mockOnePasswordClient{available: true}
+	stsClient := &mockSTSClient{}
+	var gotProfile, gotRegion string
+	manager := NewCredentialsManager()
+	manager.OnePasswordClient = onePassword
+	manager.newSTSClientWithSharedProfile = func(profileName, region string) (STSClientAPI, error) {
+		gotProfile, gotRegion = profileName, region
+		return stsClient, nil
+	}
+
+	_, err := manager.AssumeRole(AssumeRoleParams{
+		RoleARN:       "arn:aws:iam::123456789012:role/Admin",
+		SessionName:   "awsop-test",
+		Duration:      7200,
+		Region:        "ap-northeast-1",
+		Profile:       "production",
+		ExternalID:    "external-id",
+		MFASerial:     "arn:aws:iam::123456789012:mfa/user",
+		MFAToken:      "123456",
+		SourceProfile: "base",
+	})
+	if err != nil {
+		t.Fatalf("AssumeRole returned error: %v", err)
+	}
+	if gotProfile != "base" || gotRegion != "ap-northeast-1" {
+		t.Errorf("shared profile factory args = (%q, %q)", gotProfile, gotRegion)
+	}
+	if stsClient.mfaSerial != "arn:aws:iam::123456789012:mfa/user" || stsClient.mfaToken != "123456" {
+		t.Errorf("MFA args = (%q, %q)", stsClient.mfaSerial, stsClient.mfaToken)
+	}
+	if stsClient.externalID != "external-id" {
+		t.Errorf("external ID = %q", stsClient.externalID)
+	}
+	if onePassword.runAWSCommandCalls != 0 {
+		t.Fatal("1Password plugin path was called")
+	}
+}
+
+func TestAssumeRole_MFATokenRequiresMFASerial(t *testing.T) {
+	manager := NewCredentialsManager()
+	_, err := manager.AssumeRole(AssumeRoleParams{
+		RoleARN:     "arn:aws:iam::123456789012:role/Admin",
+		SessionName: "awsop-test",
+		Duration:    3600,
+		MFAToken:    "123456",
+	})
+	if err == nil || !strings.Contains(err.Error(), "プロファイルに mfa_serial が定義されていません") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestAssumeRole_MFATokenWithoutSourceProfileUsesDefaultDirectPath(t *testing.T) {
+	stsClient := &mockSTSClient{}
+	var gotRegion string
+	manager := NewCredentialsManager()
+	manager.newSTSClient = func(region string) (STSClientAPI, error) {
+		gotRegion = region
+		return stsClient, nil
+	}
+
+	_, err := manager.AssumeRole(AssumeRoleParams{
+		RoleARN:     "arn:aws:iam::123456789012:role/Admin",
+		SessionName: "awsop-test",
+		Duration:    3600,
+		Region:      "us-west-2",
+		MFASerial:   "arn:aws:iam::123456789012:mfa/user",
+		MFAToken:    "123456",
+	})
+	if err != nil {
+		t.Fatalf("AssumeRole returned error: %v", err)
+	}
+	if gotRegion != "us-west-2" || stsClient.calls != 1 {
+		t.Errorf("default STS path = region:%q calls:%d", gotRegion, stsClient.calls)
+	}
+}
+
+func TestAssumeRole_LongDurationWithMFANoItemFailsFast(t *testing.T) {
+	onePassword := &mockOnePasswordClient{available: true}
+	manager := NewCredentialsManager()
+	manager.OnePasswordClient = onePassword
+	manager.newSTSClient = func(_ string) (STSClientAPI, error) {
+		return nil, fmt.Errorf("must not be called")
+	}
+
+	_, err := manager.AssumeRole(AssumeRoleParams{
+		RoleARN:     "arn:aws:iam::123456789012:role/Admin",
+		SessionName: "awsop-test",
+		Duration:    7200,
+		MFASerial:   "arn:aws:iam::123456789012:mfa/user",
+	})
+	if err == nil || !strings.Contains(err.Error(), "3600 秒が上限") || !strings.Contains(err.Error(), "awsop_op_item") {
+		t.Fatalf("error = %v", err)
+	}
+	if onePassword.runAWSCommandCalls != 0 || onePassword.getCredentialsCalls != 0 || onePassword.getOTPCalls != 0 {
+		t.Fatal("1Password was called before fail-fast error")
+	}
+}
+
+func TestAssumeRole_LongDurationWithItemUsesStaticCredentials(t *testing.T) {
+	onePassword := &mockOnePasswordClient{
+		available:       true,
+		accessKeyID:     "long-term-access-key",
+		secretAccessKey: "long-term-secret-key",
+		otp:             "654321",
+	}
+	stsClient := &mockSTSClient{}
+	var gotAccessKeyID, gotSecretAccessKey, gotRegion string
+	manager := NewCredentialsManager()
+	manager.OnePasswordClient = onePassword
+	manager.newSTSClientWithStaticCredentials = func(accessKeyID, secretAccessKey, region string) (STSClientAPI, error) {
+		gotAccessKeyID, gotSecretAccessKey, gotRegion = accessKeyID, secretAccessKey, region
+		return stsClient, nil
+	}
+
+	_, err := manager.AssumeRole(AssumeRoleParams{
+		RoleARN:     "arn:aws:iam::123456789012:role/Admin",
+		SessionName: "awsop-test",
+		Duration:    7200,
+		Region:      "ap-northeast-1",
+		MFASerial:   "arn:aws:iam::123456789012:mfa/user",
+		OpItem:      "AWS production",
+		OpVault:     "Engineering",
+	})
+	if err != nil {
+		t.Fatalf("AssumeRole returned error: %v", err)
+	}
+	if gotAccessKeyID != "long-term-access-key" || gotSecretAccessKey != "long-term-secret-key" || gotRegion != "ap-northeast-1" {
+		t.Errorf("static factory args = (%q, %q, %q)", gotAccessKeyID, gotSecretAccessKey, gotRegion)
+	}
+	if stsClient.mfaToken != "654321" {
+		t.Errorf("MFA token = %q", stsClient.mfaToken)
+	}
+	if onePassword.getCredentialsCalls != 1 || onePassword.getOTPCalls != 1 || onePassword.runAWSCommandCalls != 0 {
+		t.Errorf("1Password calls = credentials:%d otp:%d plugin:%d", onePassword.getCredentialsCalls, onePassword.getOTPCalls, onePassword.runAWSCommandCalls)
+	}
+	if onePassword.credentialItem != "AWS production" || onePassword.credentialVault != "Engineering" || onePassword.otpItem != "AWS production" || onePassword.otpVault != "Engineering" {
+		t.Errorf("1Password item args = credentials:(%q, %q) otp:(%q, %q)", onePassword.credentialItem, onePassword.credentialVault, onePassword.otpItem, onePassword.otpVault)
+	}
+}
+
+func TestAssumeRole_DefaultDurationKeepsPluginPath(t *testing.T) {
+	onePassword := &mockOnePasswordClient{available: true}
+	manager := NewCredentialsManager()
+	manager.OnePasswordClient = onePassword
+
+	_, err := manager.AssumeRole(AssumeRoleParams{
+		RoleARN:     "arn:aws:iam::123456789012:role/Admin",
+		SessionName: "awsop-test",
+		Duration:    3600,
+		MFASerial:   "arn:aws:iam::123456789012:mfa/user",
+	})
+	if err != nil {
+		t.Fatalf("AssumeRole returned error: %v", err)
+	}
+	if onePassword.runAWSCommandCalls != 1 || onePassword.getCredentialsCalls != 0 || onePassword.getOTPCalls != 0 {
+		t.Errorf("1Password calls = credentials:%d otp:%d plugin:%d", onePassword.getCredentialsCalls, onePassword.getOTPCalls, onePassword.runAWSCommandCalls)
 	}
 }

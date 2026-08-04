@@ -31,6 +31,8 @@ func (m *ProfileManager) GetProfile(profileName string) (*ProfileConfig, error) 
 		SourceProfile: values["source_profile"],
 		ExternalID:    values["external_id"],
 		MFASerial:     values["mfa_serial"],
+		OpItem:        values["awsop_op_item"],
+		OpVault:       values["awsop_op_vault"],
 	}, nil
 }
 

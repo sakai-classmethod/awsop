@@ -10,6 +10,8 @@ type ProfileConfig struct {
 	SourceProfile string
 	ExternalID    string
 	MFASerial     string
+	OpItem        string
+	OpVault       string
 }
 
 // Credentials represents temporary AWS credentials obtained via STS.

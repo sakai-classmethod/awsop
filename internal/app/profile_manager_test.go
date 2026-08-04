@@ -16,6 +16,8 @@ region = ap-northeast-1
 source_profile = default
 external_id = ext-123
 mfa_serial = arn:aws:iam::123456789012:mfa/user
+awsop_op_item = AWS production
+awsop_op_vault = Engineering
 `
 	if err := os.WriteFile(configFile, []byte(content), 0o644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -44,6 +46,12 @@ mfa_serial = arn:aws:iam::123456789012:mfa/user
 	}
 	if profile.MFASerial != "arn:aws:iam::123456789012:mfa/user" {
 		t.Errorf("MFASerial: got %q, want %q", profile.MFASerial, "arn:aws:iam::123456789012:mfa/user")
+	}
+	if profile.OpItem != "AWS production" {
+		t.Errorf("OpItem: got %q, want %q", profile.OpItem, "AWS production")
+	}
+	if profile.OpVault != "Engineering" {
+		t.Errorf("OpVault: got %q, want %q", profile.OpVault, "Engineering")
 	}
 }
 
