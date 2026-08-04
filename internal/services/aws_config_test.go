@@ -18,6 +18,8 @@ region = us-east-1
 region = ap-northeast-1
 role_arn = arn:aws:iam::123456789012:role/admin
 source_profile = default
+awsop_op_item = AWS production
+awsop_op_vault = Engineering
 `
 	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
 		t.Fatalf("failed to write temp config: %v", err)
@@ -39,6 +41,12 @@ source_profile = default
 	}
 	if got := profile["source_profile"]; got != "default" {
 		t.Errorf("source_profile: got %q, want %q", got, "default")
+	}
+	if got := profile["awsop_op_item"]; got != "AWS production" {
+		t.Errorf("awsop_op_item: got %q, want %q", got, "AWS production")
+	}
+	if got := profile["awsop_op_vault"]; got != "Engineering" {
+		t.Errorf("awsop_op_vault: got %q, want %q", got, "Engineering")
 	}
 }
 

@@ -140,10 +140,15 @@ func NewRootCommand() *cobra.Command {
 				effectiveExternalID := externalID
 				effectiveRegion := region
 				effectiveProfile := profile
+				effectiveMFASerial := ""
+				effectiveSourceProfile := ""
+				effectiveOpItem := ""
+				effectiveOpVault := ""
 
 				if roleARN != "" {
 					// --role-arn option specified
 					effectiveRoleARN = roleARN
+					effectiveSourceProfile = sourceProfile
 					if effectiveProfile == "" {
 						effectiveProfile = "direct-role"
 					}
@@ -152,22 +157,20 @@ func NewRootCommand() *cobra.Command {
 					if sourceProfile != "" {
 						profileManager := app.NewProfileManager(configFile)
 						sourceConfig, err := profileManager.GetProfile(sourceProfile)
-						if err != nil {
+						if err == nil {
+							if effectiveRegion == "" {
+								effectiveRegion = sourceConfig.Region
+							}
+							effectiveMFASerial = sourceConfig.MFASerial
+							effectiveOpItem = sourceConfig.OpItem
+							effectiveOpVault = sourceConfig.OpVault
+						} else {
 							var pnf *services.ProfileNotFoundError
-							if errors.As(err, &pnf) {
+							var cfnf *services.ConfigFileNotFoundError
+							if !errors.As(err, &pnf) && !errors.As(err, &cfnf) {
 								consoleUI.Error(fmt.Sprintf("プロファイル '%s' が見つかりません", sourceProfile))
 								os.Exit(1)
 							}
-							var cfnf *services.ConfigFileNotFoundError
-							if errors.As(err, &cfnf) {
-								consoleUI.Error("AWS設定ファイルの読み取りに失敗しました")
-								os.Exit(1)
-							}
-							consoleUI.Error(fmt.Sprintf("プロファイル '%s' が見つかりません", sourceProfile))
-							os.Exit(1)
-						}
-						if effectiveRegion == "" {
-							effectiveRegion = sourceConfig.Region
 						}
 					}
 				} else if profile != "" {
@@ -206,6 +209,11 @@ func NewRootCommand() *cobra.Command {
 					if effectiveExternalID == "" {
 						effectiveExternalID = profileConfig.ExternalID
 					}
+
+					effectiveMFASerial = profileConfig.MFASerial
+					effectiveSourceProfile = profileConfig.SourceProfile
+					effectiveOpItem = profileConfig.OpItem
+					effectiveOpVault = profileConfig.OpVault
 				}
 
 				// Default region
@@ -243,24 +251,36 @@ func NewRootCommand() *cobra.Command {
 						os.Exit(1)
 					}
 
-					// Check 1Password availability (skip if --mfa-token is provided)
-					if mfaToken == "" && !credentialsManager.OnePasswordClient.CheckAvailability() {
+					// Check 1Password availability only for paths that invoke op.
+					failFastRoleChaining := mfaToken == "" && roleDuration > 3600 && effectiveMFASerial != "" && effectiveOpItem == ""
+					if mfaToken == "" && !failFastRoleChaining && !credentialsManager.OnePasswordClient.CheckAvailability() {
 						consoleUI.Error("1Password CLIが利用できません。opコマンドをインストールしてください。")
 						os.Exit(1)
 					}
 
 					// Show spinner while assuming role
 					var assumeErr error
-					spinnerErr := consoleUI.Spinner("1Password経由で認証情報を取得中...", func() error {
-						credentials, assumeErr = credentialsManager.AssumeRole(
-							effectiveRoleARN,
-							sessionName,
-							roleDuration,
-							effectiveRegion,
-							effectiveProfile,
-							effectiveExternalID,
-							mfaToken,
-						)
+					spinnerMessage := "1Password経由で認証情報を取得中..."
+					switch {
+					case mfaToken != "":
+						spinnerMessage = "AWS STSから認証情報を取得中..."
+					case roleDuration > 3600 && effectiveMFASerial != "" && effectiveOpItem != "":
+						spinnerMessage = "1Passwordから認証情報を取得中..."
+					}
+					spinnerErr := consoleUI.Spinner(spinnerMessage, func() error {
+						credentials, assumeErr = credentialsManager.AssumeRole(app.AssumeRoleParams{
+							RoleARN:       effectiveRoleARN,
+							SessionName:   sessionName,
+							Duration:      roleDuration,
+							Region:        effectiveRegion,
+							Profile:       effectiveProfile,
+							ExternalID:    effectiveExternalID,
+							MFASerial:     effectiveMFASerial,
+							MFAToken:      mfaToken,
+							SourceProfile: effectiveSourceProfile,
+							OpItem:        effectiveOpItem,
+							OpVault:       effectiveOpVault,
+						})
 						return assumeErr
 					})
 					if spinnerErr != nil {

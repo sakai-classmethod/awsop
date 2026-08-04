@@ -154,6 +154,33 @@ awsop production --region us-west-2
 awsop production --role-duration 7200
 ```
 
+1 時間を超えるロール期間を指定する（`mfa_serial` があるプロファイル）:
+
+プロファイルに `mfa_serial` が定義されている場合、通常の 1Password shell plugin 経由のパスは MFA セッションを経由するため、AWS の role chaining の仕様により 3600 秒が上限になります。3600 秒を超える期間（ロール側の MaxSessionDuration 以内）を指定するには、以下のいずれかを使用します。
+
+1. `awsop_op_item` を設定して 1Password から直接取得する（推奨）
+
+    ```ini
+    [profile production]
+    role_arn = arn:aws:iam::123456789012:role/MyRole
+    region = ap-northeast-1
+    mfa_serial = arn:aws:iam::111111111111:mfa/user
+    awsop_op_item = AWS
+    awsop_op_vault = Private
+    ```
+
+    `awsop_op_item` には長期認証情報と TOTP を保存している 1Password アイテム名（または ID）を指定します。`awsop_op_vault` は任意で、アイテムが属する vault を指定します。この設定がある状態で `awsop production -d 43200` のように 3600 秒超を指定すると、`op item get` で長期キーと TOTP を取得し、GetSessionToken セッションを挟まずに AssumeRole を実行します。長期キーはメモリ内のみで保持され、ディスクへは書き込まれません。
+
+2. `--mfa-token` で MFA トークンを手入力する
+
+    ```bash
+    awsop production -d 43200 -m 123456
+    ```
+
+    source credentials は `--source-profile`（またはプロファイルの `source_profile`）で指定した `~/.aws/credentials` のセクションから解決されます。
+
+どちらの手段も使えない状態で 3600 秒超を指定した場合は、AssumeRole を呼ぶ前にエラーで即終了します。
+
 認証情報を `~/.aws/credentials` に書き込む:
 
 ```bash
