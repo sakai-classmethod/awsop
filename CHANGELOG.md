@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0](https://github.com/sakai-classmethod/awsop/compare/v1.0.0...v1.1.0) (2026-08-04)
+
+
+### Features
+
+* add awsop CLI usage skill guide ([a24d8d6](https://github.com/sakai-classmethod/awsop/commit/a24d8d65e0ddeea6c1125d0f7a3b28358833845e))
+* add awsop CLI usage skill guide ([6392798](https://github.com/sakai-classmethod/awsop/commit/63927987ddb7d5a0c97e3e721d3870e39668cfbd))
+* support role durations over 1 hour by bypassing MFA session role chaining ([6263581](https://github.com/sakai-classmethod/awsop/commit/62635812c0ca0d82dd0a62aaa4ceb443657be32e))
+* support role durations over 1 hour by bypassing MFA session role chaining ([ee5ff51](https://github.com/sakai-classmethod/awsop/commit/ee5ff517751475ced1806cd6b61758350e77eafd))
+
 ## 1.0.0 (2026-06-27)
 
 
