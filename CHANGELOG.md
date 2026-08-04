@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1](https://github.com/sakai-classmethod/awsop/compare/v1.1.0...v1.1.1) (2026-08-04)
+
+
+### Bug Fixes
+
+* remove macOS quarantine attribute in cask post-install hook ([94808d3](https://github.com/sakai-classmethod/awsop/commit/94808d36a0919bdc2c4d6053c7b56394c27482b1))
+* remove macOS quarantine attribute in cask post-install hook ([23b3a4f](https://github.com/sakai-classmethod/awsop/commit/23b3a4f11f3061df11a4540fe424490867cc2a51))
+
 ## [1.1.0](https://github.com/sakai-classmethod/awsop/compare/v1.0.0...v1.1.0) (2026-08-04)
 
 
