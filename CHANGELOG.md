@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0](https://github.com/sakai-classmethod/awsop/compare/v1.1.1...v1.2.0) (2026-10-21)
+
+
+### Features
+
+* clean up expired --output-profile entries in the credentials file ([6915bb8](https://github.com/sakai-classmethod/awsop/commit/6915bb8452e82f1851a95d9a31ce26f258b43fec))
+* clean up expired --output-profile entries in the credentials file ([d1c1902](https://github.com/sakai-classmethod/awsop/commit/d1c190206ae4b2372ef043affc919785bb0dc44c))
+
+
+### Bug Fixes
+
+* retry AssumeRole with the next OTP when the MFA code is rejected ([b9e55cc](https://github.com/sakai-classmethod/awsop/commit/b9e55ccc901f0ed90afee897d0a2f7ae0f0121ee))
+
 ## [1.1.1](https://github.com/sakai-classmethod/awsop/compare/v1.1.0...v1.1.1) (2026-08-04)
 
 
