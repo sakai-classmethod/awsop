@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/sakai-classmethod/awsop/internal/services"
 )
 
 type mockOnePasswordClient struct {
@@ -15,6 +17,7 @@ type mockOnePasswordClient struct {
 	accessKeyID         string
 	secretAccessKey     string
 	otp                 string
+	otps                []string
 	credentialItem      string
 	credentialVault     string
 	otpItem             string
@@ -37,14 +40,20 @@ func (m *mockOnePasswordClient) GetItemCredentials(item, vault string) (string, 
 func (m *mockOnePasswordClient) GetItemOTP(item, vault string) (string, error) {
 	m.getOTPCalls++
 	m.otpItem, m.otpVault = item, vault
+	if len(m.otps) > 0 {
+		otp := m.otps[0]
+		m.otps = m.otps[1:]
+		return otp, nil
+	}
 	return m.otp, nil
 }
 
 type mockSTSClient struct {
-	calls      int
-	mfaSerial  string
-	mfaToken   string
-	externalID string
+	calls          int
+	mfaSerial      string
+	mfaToken       string
+	externalID     string
+	rejectedTokens map[string]bool
 }
 
 func (m *mockSTSClient) AssumeRole(_, _ string, _ int32, externalID, mfaSerial, mfaToken string) (map[string]interface{}, error) {
@@ -52,6 +61,9 @@ func (m *mockSTSClient) AssumeRole(_, _ string, _ int32, externalID, mfaSerial, 
 	m.externalID = externalID
 	m.mfaSerial = mfaSerial
 	m.mfaToken = mfaToken
+	if m.rejectedTokens[mfaToken] {
+		return nil, fmt.Errorf("ロールの引き受けに失敗しました: %w", services.ErrMFACodeRejected)
+	}
 	return testAssumeRoleResponse(), nil
 }
 
@@ -406,6 +418,40 @@ func TestAssumeRole_LongDurationWithItemUsesStaticCredentials(t *testing.T) {
 	}
 	if onePassword.credentialItem != "AWS production" || onePassword.credentialVault != "Engineering" || onePassword.otpItem != "AWS production" || onePassword.otpVault != "Engineering" {
 		t.Errorf("1Password item args = credentials:(%q, %q) otp:(%q, %q)", onePassword.credentialItem, onePassword.credentialVault, onePassword.otpItem, onePassword.otpVault)
+	}
+}
+
+func TestAssumeRole_LongDurationRetriesWithNextOTPWhenCodeIsRejected(t *testing.T) {
+	onePassword := &mockOnePasswordClient{
+		available:       true,
+		accessKeyID:     "long-term-access-key",
+		secretAccessKey: "long-term-secret-key",
+		otps:            []string{"111111", "222222"},
+	}
+	stsClient := &mockSTSClient{rejectedTokens: map[string]bool{"111111": true}}
+	waits := 0
+	manager := NewCredentialsManager()
+	manager.OnePasswordClient = onePassword
+	manager.newSTSClientWithStaticCredentials = func(_, _, _ string) (STSClientAPI, error) {
+		return stsClient, nil
+	}
+	manager.waitForNextOTPWindow = func() { waits++ }
+
+	creds, err := manager.AssumeRole(AssumeRoleParams{
+		RoleARN:     "arn:aws:iam::123456789012:role/Admin",
+		SessionName: "awsop-test",
+		Duration:    43200,
+		MFASerial:   "arn:aws:iam::123456789012:mfa/user",
+		OpItem:      "AWS production",
+	})
+	if err != nil {
+		t.Fatalf("AssumeRole returned error: %v", err)
+	}
+	if creds.AccessKeyID != "temporary-access-key" {
+		t.Errorf("AccessKeyID = %q", creds.AccessKeyID)
+	}
+	if waits != 1 || stsClient.mfaToken != "222222" {
+		t.Errorf("waits = %d, last MFA token = %q; want one wait then the next OTP", waits, stsClient.mfaToken)
 	}
 }
 

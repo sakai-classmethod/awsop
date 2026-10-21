@@ -187,6 +187,12 @@ awsop production --role-duration 7200
 awsop production --output-profile prod-temp
 ```
 
+書き込んだプロファイルには有効期限（`x_security_token_expires`）が記録され、期限切れになると次に awsop を実行したときに自動で削除されます。期限前に削除する場合は `--unset` と組み合わせます:
+
+```bash
+awsop --unset --output-profile prod-temp
+```
+
 直接ロール ARN を指定:
 
 ```bash
@@ -205,7 +211,7 @@ awsop production --force-refresh
 | :--- | :--- | :--- |
 | `--list-profiles` | `-l` | 利用可能なプロファイル一覧を表示 |
 | `--show-commands` | `-s` | export コマンドを表示（eval せずに確認） |
-| `--unset` | `-u` | 環境変数をクリア |
+| `--unset` | `-u` | 環境変数をクリア（`--output-profile` と併用するとそのプロファイルを `~/.aws/credentials` から削除） |
 | `--init-shell` | - | シェルラッパー関数を出力 |
 | `--console` | `-c` | AWS コンソールをブラウザで開く |
 | `--console-service` | - | 開くサービスを指定（例: s3, lambda） |

@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -9,14 +10,19 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/aws-sdk-go-v2/service/sts/types"
+	"github.com/aws/smithy-go"
 )
 
 type mockSTSAPI struct {
 	input *sts.AssumeRoleInput
+	err   error
 }
 
 func (m *mockSTSAPI) AssumeRole(_ context.Context, input *sts.AssumeRoleInput, _ ...func(*sts.Options)) (*sts.AssumeRoleOutput, error) {
 	m.input = input
+	if m.err != nil {
+		return nil, m.err
+	}
 	return &sts.AssumeRoleOutput{
 		Credentials: &types.Credentials{
 			AccessKeyId:     aws.String("temporary-access-key"),
@@ -95,5 +101,25 @@ func TestSTSClientAssumeRole_RejectsIncompleteMFA(t *testing.T) {
 				t.Fatal("STS AssumeRole was called")
 			}
 		})
+	}
+}
+
+func TestSTSClientAssumeRole_ReportsRejectedMFACode(t *testing.T) {
+	mock := &mockSTSAPI{err: &smithy.GenericAPIError{
+		Code:    "AccessDenied",
+		Message: "MultiFactorAuthentication failed with invalid MFA one time pass code. ",
+	}}
+	client := &STSClient{client: mock}
+
+	_, err := client.AssumeRole(
+		"arn:aws:iam::123456789012:role/Admin",
+		"awsop-test",
+		7200,
+		"",
+		"arn:aws:iam::123456789012:mfa/user",
+		"123456",
+	)
+	if !errors.Is(err, ErrMFACodeRejected) {
+		t.Fatalf("error = %v, want ErrMFACodeRejected", err)
 	}
 }

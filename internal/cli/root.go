@@ -99,6 +99,26 @@ func NewRootCommand() *cobra.Command {
 				return nil
 			}
 
+			credentialsWriter := services.NewCredentialsWriter(credentialsFile)
+			if removed, pruneErr := credentialsWriter.PruneExpired(time.Now()); pruneErr != nil {
+				ui.NewConsoleUI().Info(fmt.Sprintf("期限切れプロファイルの削除をスキップしました: %v", pruneErr))
+			} else {
+				for _, name := range removed {
+					ui.NewConsoleUI().Info(fmt.Sprintf("期限切れのプロファイル '%s' を credentials ファイルから削除しました", name))
+				}
+			}
+
+			// --unset --output-profile: remove the written profile instead of env vars
+			if unset && outputProfile != "" {
+				consoleUI := ui.NewConsoleUI()
+				if removeErr := credentialsWriter.RemoveProfile(outputProfile); removeErr != nil {
+					consoleUI.Error(removeErr.Error())
+					os.Exit(1)
+				}
+				consoleUI.Success(fmt.Sprintf("プロファイル '%s' を credentials ファイルから削除しました", outputProfile))
+				return nil
+			}
+
 			// --unset
 			if unset {
 				credentialsManager := app.NewCredentialsManager()
@@ -294,12 +314,12 @@ func NewRootCommand() *cobra.Command {
 
 				// --output-profile: write credentials to file
 				if outputProfile != "" {
-					credentialsWriter := services.NewCredentialsWriter(credentialsFile)
 					writeErr := credentialsWriter.WriteProfile(
 						outputProfile,
 						credentials.AccessKeyID,
 						credentials.SecretAccessKey,
 						credentials.SessionToken,
+						credentials.Expiration,
 					)
 					if writeErr != nil {
 						consoleUI.Error(writeErr.Error())
@@ -372,7 +392,7 @@ func NewRootCommand() *cobra.Command {
 	// Define flags
 	flags := cmd.Flags()
 	flags.BoolVarP(&showCommands, "show-commands", "s", false, "Show export commands")
-	flags.BoolVarP(&unset, "unset", "u", false, "Clear environment variables")
+	flags.BoolVarP(&unset, "unset", "u", false, "Clear environment variables (with --output-profile, remove that profile from the credentials file)")
 	flags.BoolVarP(&listProfiles, "list-profiles", "l", false, "List available profiles")
 	flags.BoolVar(&initShell, "init-shell", false, "Output shell wrapper function")
 	flags.StringVarP(&region, "region", "r", "", "AWS region")

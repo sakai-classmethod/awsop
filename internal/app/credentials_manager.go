@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -47,6 +48,15 @@ type CredentialsManager struct {
 	newSTSClient                      func(region string) (STSClientAPI, error)
 	newSTSClientWithSharedProfile     func(profileName, region string) (STSClientAPI, error)
 	newSTSClientWithStaticCredentials func(accessKeyID, secretAccessKey, region string) (STSClientAPI, error)
+	waitForNextOTPWindow              func()
+}
+
+// AWS virtual MFA devices always use 30-second TOTP steps.
+const otpStep = 30 * time.Second
+
+func sleepUntilNextOTPWindow() {
+	now := time.Now()
+	time.Sleep(now.Truncate(otpStep).Add(otpStep).Sub(now) + time.Second)
 }
 
 // NewCredentialsManager creates a CredentialsManager with a OnePasswordClient.
@@ -63,6 +73,7 @@ func NewCredentialsManager() *CredentialsManager {
 		newSTSClientWithStaticCredentials: func(accessKeyID, secretAccessKey, region string) (STSClientAPI, error) {
 			return services.NewSTSClientWithStaticCredentials(accessKeyID, secretAccessKey, region)
 		},
+		waitForNextOTPWindow: sleepUntilNextOTPWindow,
 	}
 }
 
@@ -178,14 +189,28 @@ func (m *CredentialsManager) AssumeRole(params AssumeRoleParams) (*Credentials, 
 		if clientErr != nil {
 			return nil, fmt.Errorf("STSクライアントの作成に失敗しました: %w", clientErr)
 		}
-		response, err = stsClient.AssumeRole(
-			params.RoleARN,
-			params.SessionName,
-			int32(params.Duration),
-			params.ExternalID,
-			params.MFASerial,
-			otp,
-		)
+		assumeWithOTP := func(otp string) (map[string]interface{}, error) {
+			return stsClient.AssumeRole(
+				params.RoleARN,
+				params.SessionName,
+				int32(params.Duration),
+				params.ExternalID,
+				params.MFASerial,
+				otp,
+			)
+		}
+		response, err = assumeWithOTP(otp)
+		// AWS rejects a TOTP code that was already used, and the 1Password AWS
+		// plugin (other awsop profiles sharing the MFA device) consumes the same
+		// code. The next window's code is unused, so one retry is enough.
+		if errors.Is(err, services.ErrMFACodeRejected) {
+			m.waitUntilNextOTPWindow()
+			otp, otpErr = m.OnePasswordClient.GetItemOTP(params.OpItem, params.OpVault)
+			if otpErr != nil {
+				return nil, otpErr
+			}
+			response, err = assumeWithOTP(otp)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -253,6 +278,14 @@ func (m *CredentialsManager) AssumeRole(params AssumeRoleParams) (*Credentials, 
 		Region:          resolvedRegion,
 		Profile:         params.Profile,
 	}, nil
+}
+
+func (m *CredentialsManager) waitUntilNextOTPWindow() {
+	if m.waitForNextOTPWindow != nil {
+		m.waitForNextOTPWindow()
+		return
+	}
+	sleepUntilNextOTPWindow()
 }
 
 func (m *CredentialsManager) createSTSClient(region string) (STSClientAPI, error) {
