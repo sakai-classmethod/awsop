@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -10,6 +11,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
+
+// ErrMFACodeRejected reports that STS refused the MFA one-time code, e.g.
+// because the same code was already used within its validity window.
+var ErrMFACodeRejected = errors.New("MFA ワンタイムパスコードが拒否されました")
 
 type stsAPI interface {
 	AssumeRole(context.Context, *sts.AssumeRoleInput, ...func(*sts.Options)) (*sts.AssumeRoleOutput, error)
@@ -117,6 +122,10 @@ func (s *STSClient) AssumeRole(roleARN, roleSessionName string, durationSeconds 
 	output, err := s.client.AssumeRole(context.TODO(), input)
 	if err != nil {
 		errMsg := err.Error()
+
+		if strings.Contains(errMsg, "invalid MFA one time pass code") {
+			return nil, fmt.Errorf("ロールの引き受けに失敗しました: %w (%s)", ErrMFACodeRejected, errMsg)
+		}
 
 		if strings.Contains(errMsg, "AccessDenied") || strings.Contains(errMsg, "AccessDeniedException") {
 			return nil, fmt.Errorf("ロールの引き受けに失敗しました: アクセスが拒否されました (%s)", errMsg)
