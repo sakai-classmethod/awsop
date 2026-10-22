@@ -322,7 +322,7 @@ func NewRootCommand() *cobra.Command {
 							OpItem:        effectiveOpItem,
 							OpVault:       effectiveOpVault,
 							OnWaitingForNextOTP: func() {
-								setText("MFA コードが使用済みのため、次のワンタイムパスコードを待っています（最大30秒）...")
+								setText("次のワンタイムパスコードを待っています...")
 							},
 						})
 						return assumeErr

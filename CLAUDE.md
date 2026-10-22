@@ -100,3 +100,17 @@ internal/
 - The shell wrapper (`--init-shell`) must be added to `.zshrc` for `eval` to work
 - Protected profiles in `~/.aws/credentials` require `manager = awsop` to be overwritten
 - Version is injected via `-ldflags` at build time; defaults to `dev`
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues (`sakai-classmethod/awsop`)。外部 PR はトリアージ対象外。詳細は `docs/agents/issue-tracker.md` を参照。
+
+### Triage labels
+
+デフォルトのラベル名をそのまま使用。詳細は `docs/agents/triage-labels.md` を参照。
+
+### Domain docs
+
+シングルコンテキスト構成（ルートに `CONTEXT.md` + `docs/adr/`）。詳細は `docs/agents/domain.md` を参照。
