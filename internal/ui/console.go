@@ -46,11 +46,18 @@ func (u *ConsoleUI) Debug(message string) {
 	fmt.Fprintf(os.Stderr, "%s🔍 %s%s\n", colorDim, message, colorReset)
 }
 
-// Spinner shows a spinner animation on stderr while fn executes.
-// It returns the error from fn.
-func (u *ConsoleUI) Spinner(text string, fn func() error) error {
+// Spinner shows a spinner animation on stderr while fn executes. fn may call
+// setText to replace the message mid-run. It returns the error from fn.
+func (u *ConsoleUI) Spinner(text string, fn func(setText func(string)) error) error {
 	var wg sync.WaitGroup
+	var mu sync.Mutex
 	done := make(chan struct{})
+
+	setText := func(t string) {
+		mu.Lock()
+		text = t
+		mu.Unlock()
+	}
 
 	wg.Add(1)
 	go func() {
@@ -62,14 +69,17 @@ func (u *ConsoleUI) Spinner(text string, fn func() error) error {
 				fmt.Fprint(os.Stderr, clearLine)
 				return
 			default:
-				fmt.Fprintf(os.Stderr, "\r%s %s", spinnerFrames[i%len(spinnerFrames)], text)
+				mu.Lock()
+				current := text
+				mu.Unlock()
+				fmt.Fprintf(os.Stderr, "%s%s %s", clearLine, spinnerFrames[i%len(spinnerFrames)], current)
 				i++
 				time.Sleep(80 * time.Millisecond)
 			}
 		}
 	}()
 
-	err := fn()
+	err := fn(setText)
 
 	close(done)
 	wg.Wait()

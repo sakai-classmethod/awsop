@@ -17,6 +17,28 @@ import (
 // Version is set at build time via ldflags.
 var Version = "dev"
 
+// cachedCredentialFlags are the flags that ask for credentials the env cache
+// cannot satisfy: a specific lifetime, a file copy meant to outlive the
+// shell session, or a different identity path.
+var cachedCredentialFlags = []string{"force-refresh", "mfa-token", "role-arn", "output-profile", "role-duration"}
+
+func canReuseCachedCredentials(cmd *cobra.Command) bool {
+	for _, name := range cachedCredentialFlags {
+		if cmd.Flags().Changed(name) {
+			return false
+		}
+	}
+	return true
+}
+
+// validateRoleDuration mirrors the STS AssumeRole DurationSeconds range.
+func validateRoleDuration(seconds int) error {
+	if seconds < 900 || seconds > 43200 {
+		return fmt.Errorf("ロール期間は900から43200秒の範囲で指定してください（指定値: %d秒）", seconds)
+	}
+	return nil
+}
+
 // NewRootCommand creates the root cobra.Command for awsop.
 func NewRootCommand() *cobra.Command {
 	var (
@@ -143,9 +165,8 @@ func NewRootCommand() *cobra.Command {
 			if profile != "" || roleARN != "" || console || consoleService != "" || consoleLink {
 				consoleUI := ui.NewConsoleUI()
 
-				// Validate role_duration
-				if roleDuration < 1 || roleDuration > 43200 {
-					consoleUI.Error(fmt.Sprintf("ロール期間は1から43200秒の範囲で指定してください（指定値: %d秒）", roleDuration))
+				if err := validateRoleDuration(roleDuration); err != nil {
+					consoleUI.Error(err.Error())
 					os.Exit(1)
 				}
 
@@ -250,7 +271,7 @@ func NewRootCommand() *cobra.Command {
 				if cacheProfile == "" {
 					cacheProfile = os.Getenv("AWSOP_PROFILE")
 				}
-				canUseCache := !forceRefresh && mfaToken == "" && roleARN == "" && cacheProfile != ""
+				canUseCache := canReuseCachedCredentials(cmd) && cacheProfile != ""
 				if canUseCache {
 					cacheRegion := effectiveRegion
 					if effectiveProfile == "" && region == "" {
@@ -287,7 +308,7 @@ func NewRootCommand() *cobra.Command {
 					case roleDuration > 3600 && effectiveMFASerial != "" && effectiveOpItem != "":
 						spinnerMessage = "1Passwordから認証情報を取得中..."
 					}
-					spinnerErr := consoleUI.Spinner(spinnerMessage, func() error {
+					spinnerErr := consoleUI.Spinner(spinnerMessage, func(setText func(string)) error {
 						credentials, assumeErr = credentialsManager.AssumeRole(app.AssumeRoleParams{
 							RoleARN:       effectiveRoleARN,
 							SessionName:   sessionName,
@@ -300,6 +321,9 @@ func NewRootCommand() *cobra.Command {
 							SourceProfile: effectiveSourceProfile,
 							OpItem:        effectiveOpItem,
 							OpVault:       effectiveOpVault,
+							OnWaitingForNextOTP: func() {
+								setText("次のワンタイムパスコードを待っています...")
+							},
 						})
 						return assumeErr
 					})
@@ -338,7 +362,7 @@ func NewRootCommand() *cobra.Command {
 					}
 
 					var consoleURL string
-					spinnerErr := consoleUI.Spinner("コンソールURLを生成中...", func() error {
+					spinnerErr := consoleUI.Spinner("コンソールURLを生成中...", func(func(string)) error {
 						var err error
 						consoleURL, err = consoleManager.OpenConsole(
 							credentials,

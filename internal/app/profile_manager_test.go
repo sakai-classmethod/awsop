@@ -115,3 +115,49 @@ role_arn = arn:aws:iam::222222222222:role/Production
 		}
 	}
 }
+
+func TestGetProfile_InheritsOpItemFromAwsopSection(t *testing.T) {
+	configFile := filepath.Join(t.TempDir(), "config")
+	content := `[awsop]
+awsop_op_item = AWS shared
+awsop_op_vault = Employee
+
+[profile production]
+role_arn = arn:aws:iam::123456789012:role/MyRole
+
+[profile staging]
+role_arn = arn:aws:iam::123456789012:role/MyRole
+awsop_op_item = AWS staging
+awsop_op_vault = Staging
+`
+	if err := os.WriteFile(configFile, []byte(content), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+	pm := NewProfileManager(configFile)
+
+	production, err := pm.GetProfile("production")
+	if err != nil {
+		t.Fatalf("GetProfile returned error: %v", err)
+	}
+	if production.OpItem != "AWS shared" || production.OpVault != "Employee" {
+		t.Errorf("production op item = (%q, %q), want the [awsop] values", production.OpItem, production.OpVault)
+	}
+
+	staging, err := pm.GetProfile("staging")
+	if err != nil {
+		t.Fatalf("GetProfile returned error: %v", err)
+	}
+	if staging.OpItem != "AWS staging" || staging.OpVault != "Staging" {
+		t.Errorf("staging op item = (%q, %q), want the profile's own values", staging.OpItem, staging.OpVault)
+	}
+
+	profiles, err := pm.ListProfiles()
+	if err != nil {
+		t.Fatalf("ListProfiles returned error: %v", err)
+	}
+	for _, p := range profiles {
+		if p == "awsop" {
+			t.Errorf("ListProfiles = %v, [awsop] is settings, not a profile", profiles)
+		}
+	}
+}

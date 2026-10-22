@@ -38,6 +38,8 @@ type AssumeRoleParams struct {
 	SourceProfile string
 	OpItem        string
 	OpVault       string
+
+	OnWaitingForNextOTP func()
 }
 
 // CredentialsManager orchestrates credential retrieval via 1Password or STS.
@@ -170,7 +172,7 @@ func (m *CredentialsManager) AssumeRole(params AssumeRoleParams) (*Credentials, 
 
 	case params.Duration > 3600 && params.MFASerial != "":
 		if params.OpItem == "" {
-			return nil, fmt.Errorf("MFA セッション（role chaining）経由では 3600 秒が上限です。~/.aws/config のプロファイルに awsop_op_item を設定するか、-m で MFA トークンを指定してください")
+			return nil, fmt.Errorf("MFA セッション（role chaining）経由では 3600 秒が上限です。~/.aws/config のプロファイルか [awsop] セクションに awsop_op_item を設定するか、-m で MFA トークンを指定してください")
 		}
 		if !m.OnePasswordClient.CheckAvailability() {
 			return nil, fmt.Errorf("1Password CLIが見つかりません。opコマンドをインストールしてください")
@@ -204,6 +206,9 @@ func (m *CredentialsManager) AssumeRole(params AssumeRoleParams) (*Credentials, 
 		// plugin (other awsop profiles sharing the MFA device) consumes the same
 		// code. The next window's code is unused, so one retry is enough.
 		if errors.Is(err, services.ErrMFACodeRejected) {
+			if params.OnWaitingForNextOTP != nil {
+				params.OnWaitingForNextOTP()
+			}
 			m.waitUntilNextOTPWindow()
 			otp, otpErr = m.OnePasswordClient.GetItemOTP(params.OpItem, params.OpVault)
 			if otpErr != nil {

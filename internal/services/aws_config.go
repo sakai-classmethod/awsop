@@ -80,6 +80,27 @@ func (p *AWSConfigParser) ReadProfile(profileName string) (map[string]string, er
 	return result, nil
 }
 
+// awsopSection holds awsop settings shared by every profile. AWS CLI v2,
+// boto3 and aws-sdk-go-v2 ignore sections without the "profile " prefix.
+const awsopSection = "awsop"
+
+// ReadAwsopSettings returns the keys of the [awsop] section, or an empty map
+// when the section does not exist.
+func (p *AWSConfigParser) ReadAwsopSettings() (map[string]string, error) {
+	cfg, err := ini.Load(p.ConfigFile)
+	if err != nil {
+		return nil, fmt.Errorf("設定ファイルの読み取りに失敗しました: %w", err)
+	}
+
+	result := map[string]string{}
+	if section, err := cfg.GetSection(awsopSection); err == nil {
+		for _, key := range section.Keys() {
+			result[key.Name()] = key.String()
+		}
+	}
+	return result, nil
+}
+
 // ListProfiles returns the names of all profiles defined in the config file.
 // It strips the "profile " prefix from section names.
 func (p *AWSConfigParser) ListProfiles() ([]string, error) {
