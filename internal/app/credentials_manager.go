@@ -38,6 +38,8 @@ type AssumeRoleParams struct {
 	SourceProfile string
 	OpItem        string
 	OpVault       string
+
+	OnWaitingForNextOTP func()
 }
 
 // CredentialsManager orchestrates credential retrieval via 1Password or STS.
@@ -204,6 +206,9 @@ func (m *CredentialsManager) AssumeRole(params AssumeRoleParams) (*Credentials, 
 		// plugin (other awsop profiles sharing the MFA device) consumes the same
 		// code. The next window's code is unused, so one retry is enough.
 		if errors.Is(err, services.ErrMFACodeRejected) {
+			if params.OnWaitingForNextOTP != nil {
+				params.OnWaitingForNextOTP()
+			}
 			m.waitUntilNextOTPWindow()
 			otp, otpErr = m.OnePasswordClient.GetItemOTP(params.OpItem, params.OpVault)
 			if otpErr != nil {

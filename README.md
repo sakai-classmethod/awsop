@@ -115,6 +115,7 @@ go install github.com/sakai-classmethod/awsop/cmd/awsop@latest
     - `AWSOP_EXPIRATION`
 
     同じプロファイルの認証情報がまだ有効な場合（残り5分以上）、キャッシュが再利用され 1Password CLI を呼び出しません。
+    `--output-profile`、`--role-duration`、`--mfa-token`、`--role-arn`、`--force-refresh` のいずれかを指定したときは、キャッシュを使わずに新しい認証情報を取得します。
 
 3. 認証情報をクリアする
 

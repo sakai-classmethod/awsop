@@ -437,12 +437,14 @@ func TestAssumeRole_LongDurationRetriesWithNextOTPWhenCodeIsRejected(t *testing.
 	}
 	manager.waitForNextOTPWindow = func() { waits++ }
 
+	notified := 0
 	creds, err := manager.AssumeRole(AssumeRoleParams{
-		RoleARN:     "arn:aws:iam::123456789012:role/Admin",
-		SessionName: "awsop-test",
-		Duration:    43200,
-		MFASerial:   "arn:aws:iam::123456789012:mfa/user",
-		OpItem:      "AWS production",
+		RoleARN:             "arn:aws:iam::123456789012:role/Admin",
+		SessionName:         "awsop-test",
+		Duration:            43200,
+		MFASerial:           "arn:aws:iam::123456789012:mfa/user",
+		OpItem:              "AWS production",
+		OnWaitingForNextOTP: func() { notified++ },
 	})
 	if err != nil {
 		t.Fatalf("AssumeRole returned error: %v", err)
@@ -452,6 +454,9 @@ func TestAssumeRole_LongDurationRetriesWithNextOTPWhenCodeIsRejected(t *testing.
 	}
 	if waits != 1 || stsClient.mfaToken != "222222" {
 		t.Errorf("waits = %d, last MFA token = %q; want one wait then the next OTP", waits, stsClient.mfaToken)
+	}
+	if notified != 1 {
+		t.Errorf("OnWaitingForNextOTP called %d times, want 1", notified)
 	}
 }
 
