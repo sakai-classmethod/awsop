@@ -172,7 +172,7 @@ func (m *CredentialsManager) AssumeRole(params AssumeRoleParams) (*Credentials, 
 
 	case params.Duration > 3600 && params.MFASerial != "":
 		if params.OpItem == "" {
-			return nil, fmt.Errorf("MFA セッション（role chaining）経由では 3600 秒が上限です。~/.aws/config のプロファイルに awsop_op_item を設定するか、-m で MFA トークンを指定してください")
+			return nil, fmt.Errorf("MFA セッション（role chaining）経由では 3600 秒が上限です。~/.aws/config のプロファイルか [awsop] セクションに awsop_op_item を設定するか、-m で MFA トークンを指定してください")
 		}
 		if !m.OnePasswordClient.CheckAvailability() {
 			return nil, fmt.Errorf("1Password CLIが見つかりません。opコマンドをインストールしてください")

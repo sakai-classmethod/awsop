@@ -172,6 +172,14 @@ awsop production --role-duration 7200
 
     `awsop_op_item` には長期認証情報と TOTP を保存している 1Password アイテム名（または ID）を指定します。`awsop_op_vault` は任意で、アイテムが属する vault を指定します。この設定がある状態で `awsop production -d 43200` のように 3600 秒超を指定すると、`op item get` で長期キーと TOTP を取得し、GetSessionToken セッションを挟まずに AssumeRole を実行します。長期キーはメモリ内のみで保持され、ディスクへは書き込まれません。
 
+    複数のプロファイルで同じアイテムを使う場合は、`[awsop]` セクションに一度だけ書けば全プロファイルに適用されます。プロファイルに書いた値があれば、そちらが優先されます。AWS CLI v2、boto3、aws-sdk-go-v2 は `profile ` で始まらないセクションを無視するので、`~/.aws/config` に置いても他のツールには影響しません。
+
+    ```ini
+    [awsop]
+    awsop_op_item = AWS
+    awsop_op_vault = Private
+    ```
+
 2. `--mfa-token` で MFA トークンを手入力する
 
     ```bash

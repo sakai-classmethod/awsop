@@ -23,6 +23,16 @@ func (m *ProfileManager) GetProfile(profileName string) (*ProfileConfig, error) 
 	if err != nil {
 		return nil, err
 	}
+	shared, err := m.parser.ReadAwsopSettings()
+	if err != nil {
+		return nil, err
+	}
+	withShared := func(key string) string {
+		if v := values[key]; v != "" {
+			return v
+		}
+		return shared[key]
+	}
 
 	return &ProfileConfig{
 		Name:          profileName,
@@ -31,8 +41,8 @@ func (m *ProfileManager) GetProfile(profileName string) (*ProfileConfig, error) 
 		SourceProfile: values["source_profile"],
 		ExternalID:    values["external_id"],
 		MFASerial:     values["mfa_serial"],
-		OpItem:        values["awsop_op_item"],
-		OpVault:       values["awsop_op_vault"],
+		OpItem:        withShared("awsop_op_item"),
+		OpVault:       withShared("awsop_op_vault"),
 	}, nil
 }
 
