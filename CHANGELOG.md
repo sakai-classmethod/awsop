@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0](https://github.com/sakai-classmethod/awsop/compare/v1.2.0...v1.3.0) (2026-10-22)
+
+
+### Features
+
+* share awsop_op_item and awsop_op_vault across profiles via [awsop] ([d8cc24b](https://github.com/sakai-classmethod/awsop/commit/d8cc24b47dea8a0df15df1ec5e5713ec3e849a92))
+* share awsop_op_item and awsop_op_vault across profiles via [awsop] ([58129eb](https://github.com/sakai-classmethod/awsop/commit/58129eb5455b9227e87c44f02d8e015f1041d514))
+
+
+### Bug Fixes
+
+* fetch fresh credentials when the request asks for more than the cache ([1e23941](https://github.com/sakai-classmethod/awsop/commit/1e2394166d3d6b707c1c38054ff88019938c3893))
+* keep the OTP wait message within an 80-column terminal ([8b3e624](https://github.com/sakai-classmethod/awsop/commit/8b3e6240ef2de58ba50265a4a60aeb50b52c0626))
+
 ## [1.2.0](https://github.com/sakai-classmethod/awsop/compare/v1.1.1...v1.2.0) (2026-10-21)
 
 
