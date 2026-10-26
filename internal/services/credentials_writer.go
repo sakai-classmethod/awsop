@@ -42,9 +42,7 @@ func (w *CredentialsWriter) WriteProfile(profileName, accessKeyID, secretAccessK
 
 	sec, err := cfg.GetSection(profileName)
 	if err == nil {
-		// Profile section exists; check if managed by awsop.
-		manager := sec.Key("manager").String()
-		if manager != "awsop" {
+		if !isManagedSection(sec) {
 			return fmt.Errorf(
 				"プロファイル '%s' は既に存在し、awsop管理ではありません。上書きできません。",
 				profileName,
@@ -85,7 +83,7 @@ func (w *CredentialsWriter) PruneExpired(now time.Time) ([]string, error) {
 
 	var removed []string
 	for _, sec := range cfg.Sections() {
-		if sec.Key("manager").String() != "awsop" {
+		if !isManagedSection(sec) {
 			continue
 		}
 		expiration, err := time.Parse(time.RFC3339, sec.Key(expirationKey).String())
@@ -113,7 +111,7 @@ func (w *CredentialsWriter) RemoveProfile(profileName string) error {
 	if err != nil {
 		return fmt.Errorf("プロファイル '%s' が見つかりません", profileName)
 	}
-	if sec.Key("manager").String() != "awsop" {
+	if !isManagedSection(sec) {
 		return fmt.Errorf("プロファイル '%s' はawsop管理ではありません。削除できません。", profileName)
 	}
 
@@ -133,7 +131,16 @@ func (w *CredentialsWriter) IsManagedByAwsop(profileName string) bool {
 		return false
 	}
 
-	return sec.Key("manager").String() == "awsop"
+	return isManagedSection(sec)
+}
+
+// isManagedSection reads the manager key with GetKey because Section.Key
+// inserts an empty key when it is missing, and a later save would write that
+// key into every section, including the sectionless DEFAULT one the AWS CLI
+// rejects.
+func isManagedSection(sec *ini.Section) bool {
+	key, err := sec.GetKey("manager")
+	return err == nil && key.String() == "awsop"
 }
 
 // loadOrCreateConfig loads the credentials file if it exists, or creates an empty config.

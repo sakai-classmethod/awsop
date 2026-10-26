@@ -276,3 +276,31 @@ aws_secret_access_key = SECRET
 		t.Error("expected IsManagedByAwsop to return false for missing profile")
 	}
 }
+
+func TestPruneExpired_LeavesUnmanagedSectionsUntouched(t *testing.T) {
+	credFile := filepath.Join(t.TempDir(), "credentials")
+	content := `[expired]
+aws_access_key_id        = AKID
+manager                  = awsop
+x_security_token_expires = 2026-10-21T00:00:00Z
+
+[manual]
+aws_access_key_id = AKID
+`
+	if err := os.WriteFile(credFile, []byte(content), 0o600); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+
+	if _, err := NewCredentialsWriter(credFile).PruneExpired(time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatalf("PruneExpired returned error: %v", err)
+	}
+
+	got, err := os.ReadFile(credFile)
+	if err != nil {
+		t.Fatalf("failed to read file: %v", err)
+	}
+	want := "[manual]\naws_access_key_id = AKID\n"
+	if string(got) != want {
+		t.Errorf("credentials file = %q, want %q (no stray manager key outside a section)", got, want)
+	}
+}
