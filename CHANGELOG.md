@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1](https://github.com/sakai-classmethod/awsop/compare/v1.3.0...v1.3.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* stop writing an empty manager key into unmanaged credentials sections ([9c83562](https://github.com/sakai-classmethod/awsop/commit/9c83562a604cdda2621027a44428f199778b20fe))
+* stop writing an empty manager key into unmanaged credentials sections ([8c6aa46](https://github.com/sakai-classmethod/awsop/commit/8c6aa463694b92fb806eed6467d48558dee14c80))
+
 ## [1.3.0](https://github.com/sakai-classmethod/awsop/compare/v1.2.0...v1.3.0) (2026-10-22)
 
 
